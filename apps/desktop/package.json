@@ -1,0 +1,33 @@
+{
+  "name": "desktop",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "concurrently -k \"tsc -w -p tsconfig.json\" \"wait-on dist/main/index.js && cross-env NODE_ENV=development electron .\"",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "cross-env NODE_ENV=production electron .",
+    "package": "electron-builder",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.2",
+    "electron-store": "^8.2.0",
+    "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "@mangiar/tsconfig": "workspace:*",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.20.4",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "drizzle-kit": "^0.31.10",
+    "electron": "44.4.3",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.9.3",
+    "wait-on": "^9.1.0"
+  }
+}

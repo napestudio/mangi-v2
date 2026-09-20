@@ -1,0 +1,13 @@
+{
+  "extends": "@mangiar/tsconfig/node-library.json",
+  "compilerOptions": {
+    "removeComments": true,
+    "allowSyntheticDefaultImports": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "noFallthroughCasesInSwitch": false,
+    "noUncheckedIndexedAccess": false
+  }
+}

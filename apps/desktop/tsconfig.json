@@ -1,0 +1,9 @@
+{
+  "extends": "@mangiar/tsconfig/node-library.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,17 @@
+{
+  "appId": "com.mangiar.desktop",
+  "productName": "Mangiar",
+  "directories": {
+    "output": "release"
+  },
+  "files": ["dist/**/*", "package.json"],
+  "win": {
+    "target": ["nsis"]
+  },
+  "mac": {
+    "target": ["dmg"]
+  },
+  "linux": {
+    "target": ["AppImage"]
+  }
+}

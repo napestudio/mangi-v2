@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+.turbo
+*.log
+.env
+.env.local
+apps/desktop/dist
+apps/desktop/out
+apps/desktop/release
+apps/api/generated
+.DS_Store
