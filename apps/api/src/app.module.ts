@@ -8,12 +8,18 @@ import { validate } from "./config/env.validation";
 import { RedisModule } from "./common/redis/redis.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { BusinessHoursModule } from "./modules/business-hours/business-hours.module";
+import { CashModule } from "./modules/cash/cash.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { HealthModule } from "./modules/health/health.module";
+import { InventoryModule } from "./modules/inventory/inventory.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { ReservationsModule } from "./modules/reservations/reservations.module";
 import { RestaurantsModule } from "./modules/restaurants/restaurants.module";
+import { SalonModule } from "./modules/salon/salon.module";
 import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.module";
+import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 import { UsersModule } from "./modules/users/users.module";
 import { WebsocketsModule } from "./modules/websockets/websockets.module";
 
@@ -44,9 +50,15 @@ import { WebsocketsModule } from "./modules/websockets/websockets.module";
     AuthModule,
     UsersModule,
     RestaurantsModule,
+    BusinessHoursModule,
     CategoriesModule,
     ProductsModule,
+    InventoryModule,
     OrdersModule,
+    SalonModule,
+    CashModule,
+    ReservationsModule,
+    SuppliersModule,
     SubscriptionsModule,
     WebsocketsModule,
     HealthModule,

@@ -12,11 +12,22 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as AuthRouteRouteImport } from './routes/_auth/route'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppSettingsRouteRouteImport } from './routes/_app/settings/route'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
+import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
+import { Route as AppReservationsIndexRouteImport } from './routes/_app/reservations/index'
+import { Route as AppReservationsNewRouteImport } from './routes/_app/reservations/new'
+import { Route as AppSalonIndexRouteImport } from './routes/_app/salon/index'
+import { Route as AppSettingsMapRouteImport } from './routes/_app/settings/map'
+import { Route as AppSettingsReservationsRouteImport } from './routes/_app/settings/reservations'
+import { Route as AppSettingsRestaurantRouteImport } from './routes/_app/settings/restaurant'
+import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
+import { Route as AppSuppliersPurchaseOrdersRouteImport } from './routes/_app/suppliers/purchase-orders'
+import { Route as AppInventoryIngredientsIndexRouteImport } from './routes/_app/inventory/ingredients/index'
 import { Route as AppMenuProductsIndexRouteImport } from './routes/_app/menu/products/index'
 
 const AppRouteRoute = AppRouteRouteImport.update({
@@ -30,6 +41,11 @@ const AuthRouteRoute = AuthRouteRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppSettingsRouteRoute = AppSettingsRouteRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
@@ -47,6 +63,11 @@ const AuthRegisterRoute = AuthRegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => AuthRouteRoute,
 } as any)
+const AppCashIndexRoute = AppCashIndexRouteImport.update({
+  id: '/cash/',
+  path: '/cash/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
@@ -57,6 +78,53 @@ const AppOrdersNewRoute = AppOrdersNewRouteImport.update({
   path: '/orders/new',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppReservationsIndexRoute = AppReservationsIndexRouteImport.update({
+  id: '/reservations/',
+  path: '/reservations/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppReservationsNewRoute = AppReservationsNewRouteImport.update({
+  id: '/reservations/new',
+  path: '/reservations/new',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppSalonIndexRoute = AppSalonIndexRouteImport.update({
+  id: '/salon/',
+  path: '/salon/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppSettingsMapRoute = AppSettingsMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
+const AppSettingsReservationsRoute = AppSettingsReservationsRouteImport.update({
+  id: '/reservations',
+  path: '/reservations',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
+const AppSettingsRestaurantRoute = AppSettingsRestaurantRouteImport.update({
+  id: '/restaurant',
+  path: '/restaurant',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
+const AppSuppliersIndexRoute = AppSuppliersIndexRouteImport.update({
+  id: '/suppliers/',
+  path: '/suppliers/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppSuppliersPurchaseOrdersRoute =
+  AppSuppliersPurchaseOrdersRouteImport.update({
+    id: '/suppliers/purchase-orders',
+    path: '/suppliers/purchase-orders',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
+const AppInventoryIngredientsIndexRoute =
+  AppInventoryIngredientsIndexRouteImport.update({
+    id: '/inventory/ingredients/',
+    path: '/inventory/ingredients/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppMenuProductsIndexRoute = AppMenuProductsIndexRouteImport.update({
   id: '/menu/products/',
   path: '/menu/products/',
@@ -65,63 +133,129 @@ const AppMenuProductsIndexRoute = AppMenuProductsIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/settings': typeof AppSettingsRouteRouteWithChildren
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/reservations/new': typeof AppReservationsNewRoute
+  '/settings/map': typeof AppSettingsMapRoute
+  '/settings/reservations': typeof AppSettingsReservationsRoute
+  '/settings/restaurant': typeof AppSettingsRestaurantRoute
+  '/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
+  '/cash/': typeof AppCashIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
+  '/reservations/': typeof AppReservationsIndexRoute
+  '/salon/': typeof AppSalonIndexRoute
+  '/suppliers/': typeof AppSuppliersIndexRoute
+  '/inventory/ingredients/': typeof AppInventoryIngredientsIndexRoute
   '/menu/products/': typeof AppMenuProductsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
+  '/settings': typeof AppSettingsRouteRouteWithChildren
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/reservations/new': typeof AppReservationsNewRoute
+  '/settings/map': typeof AppSettingsMapRoute
+  '/settings/reservations': typeof AppSettingsReservationsRoute
+  '/settings/restaurant': typeof AppSettingsRestaurantRoute
+  '/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
+  '/cash': typeof AppCashIndexRoute
   '/orders': typeof AppOrdersIndexRoute
+  '/reservations': typeof AppReservationsIndexRoute
+  '/salon': typeof AppSalonIndexRoute
+  '/suppliers': typeof AppSuppliersIndexRoute
+  '/inventory/ingredients': typeof AppInventoryIngredientsIndexRoute
   '/menu/products': typeof AppMenuProductsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteRouteWithChildren
   '/_auth': typeof AuthRouteRouteWithChildren
+  '/_app/settings': typeof AppSettingsRouteRouteWithChildren
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/register': typeof AuthRegisterRoute
   '/_app/': typeof AppIndexRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
+  '/_app/reservations/new': typeof AppReservationsNewRoute
+  '/_app/settings/map': typeof AppSettingsMapRoute
+  '/_app/settings/reservations': typeof AppSettingsReservationsRoute
+  '/_app/settings/restaurant': typeof AppSettingsRestaurantRoute
+  '/_app/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
+  '/_app/cash/': typeof AppCashIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
+  '/_app/reservations/': typeof AppReservationsIndexRoute
+  '/_app/salon/': typeof AppSalonIndexRoute
+  '/_app/suppliers/': typeof AppSuppliersIndexRoute
+  '/_app/inventory/ingredients/': typeof AppInventoryIngredientsIndexRoute
   '/_app/menu/products/': typeof AppMenuProductsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/settings'
     | '/forgot-password'
     | '/login'
     | '/register'
     | '/orders/new'
+    | '/reservations/new'
+    | '/settings/map'
+    | '/settings/reservations'
+    | '/settings/restaurant'
+    | '/suppliers/purchase-orders'
+    | '/cash/'
     | '/orders/'
+    | '/reservations/'
+    | '/salon/'
+    | '/suppliers/'
+    | '/inventory/ingredients/'
     | '/menu/products/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/settings'
     | '/forgot-password'
     | '/login'
     | '/register'
     | '/orders/new'
+    | '/reservations/new'
+    | '/settings/map'
+    | '/settings/reservations'
+    | '/settings/restaurant'
+    | '/suppliers/purchase-orders'
+    | '/cash'
     | '/orders'
+    | '/reservations'
+    | '/salon'
+    | '/suppliers'
+    | '/inventory/ingredients'
     | '/menu/products'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
+    | '/_app/settings'
     | '/_auth/forgot-password'
     | '/_auth/login'
     | '/_auth/register'
     | '/_app/'
     | '/_app/orders/new'
+    | '/_app/reservations/new'
+    | '/_app/settings/map'
+    | '/_app/settings/reservations'
+    | '/_app/settings/restaurant'
+    | '/_app/suppliers/purchase-orders'
+    | '/_app/cash/'
     | '/_app/orders/'
+    | '/_app/reservations/'
+    | '/_app/salon/'
+    | '/_app/suppliers/'
+    | '/_app/inventory/ingredients/'
     | '/_app/menu/products/'
   fileRoutesById: FileRoutesById
 }
@@ -153,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_auth/forgot-password': {
       id: '/_auth/forgot-password'
       path: '/forgot-password'
@@ -174,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRegisterRouteImport
       parentRoute: typeof AuthRouteRoute
     }
+    '/_app/cash/': {
+      id: '/_app/cash/'
+      path: '/cash'
+      fullPath: '/cash/'
+      preLoaderRoute: typeof AppCashIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/orders/': {
       id: '/_app/orders/'
       path: '/orders'
@@ -188,6 +336,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOrdersNewRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/reservations/': {
+      id: '/_app/reservations/'
+      path: '/reservations'
+      fullPath: '/reservations/'
+      preLoaderRoute: typeof AppReservationsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/reservations/new': {
+      id: '/_app/reservations/new'
+      path: '/reservations/new'
+      fullPath: '/reservations/new'
+      preLoaderRoute: typeof AppReservationsNewRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/salon/': {
+      id: '/_app/salon/'
+      path: '/salon'
+      fullPath: '/salon/'
+      preLoaderRoute: typeof AppSalonIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/settings/map': {
+      id: '/_app/settings/map'
+      path: '/map'
+      fullPath: '/settings/map'
+      preLoaderRoute: typeof AppSettingsMapRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
+    '/_app/settings/reservations': {
+      id: '/_app/settings/reservations'
+      path: '/reservations'
+      fullPath: '/settings/reservations'
+      preLoaderRoute: typeof AppSettingsReservationsRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
+    '/_app/settings/restaurant': {
+      id: '/_app/settings/restaurant'
+      path: '/restaurant'
+      fullPath: '/settings/restaurant'
+      preLoaderRoute: typeof AppSettingsRestaurantRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
+    '/_app/suppliers/': {
+      id: '/_app/suppliers/'
+      path: '/suppliers'
+      fullPath: '/suppliers/'
+      preLoaderRoute: typeof AppSuppliersIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/suppliers/purchase-orders': {
+      id: '/_app/suppliers/purchase-orders'
+      path: '/suppliers/purchase-orders'
+      fullPath: '/suppliers/purchase-orders'
+      preLoaderRoute: typeof AppSuppliersPurchaseOrdersRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/inventory/ingredients/': {
+      id: '/_app/inventory/ingredients/'
+      path: '/inventory/ingredients'
+      fullPath: '/inventory/ingredients/'
+      preLoaderRoute: typeof AppInventoryIngredientsIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/menu/products/': {
       id: '/_app/menu/products/'
       path: '/menu/products'
@@ -198,17 +409,48 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppSettingsRouteRouteChildren {
+  AppSettingsMapRoute: typeof AppSettingsMapRoute
+  AppSettingsReservationsRoute: typeof AppSettingsReservationsRoute
+  AppSettingsRestaurantRoute: typeof AppSettingsRestaurantRoute
+}
+
+const AppSettingsRouteRouteChildren: AppSettingsRouteRouteChildren = {
+  AppSettingsMapRoute: AppSettingsMapRoute,
+  AppSettingsReservationsRoute: AppSettingsReservationsRoute,
+  AppSettingsRestaurantRoute: AppSettingsRestaurantRoute,
+}
+
+const AppSettingsRouteRouteWithChildren =
+  AppSettingsRouteRoute._addFileChildren(AppSettingsRouteRouteChildren)
+
 interface AppRouteRouteChildren {
+  AppSettingsRouteRoute: typeof AppSettingsRouteRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
+  AppReservationsNewRoute: typeof AppReservationsNewRoute
+  AppSuppliersPurchaseOrdersRoute: typeof AppSuppliersPurchaseOrdersRoute
+  AppCashIndexRoute: typeof AppCashIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
+  AppReservationsIndexRoute: typeof AppReservationsIndexRoute
+  AppSalonIndexRoute: typeof AppSalonIndexRoute
+  AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
+  AppInventoryIngredientsIndexRoute: typeof AppInventoryIngredientsIndexRoute
   AppMenuProductsIndexRoute: typeof AppMenuProductsIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppSettingsRouteRoute: AppSettingsRouteRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
+  AppReservationsNewRoute: AppReservationsNewRoute,
+  AppSuppliersPurchaseOrdersRoute: AppSuppliersPurchaseOrdersRoute,
+  AppCashIndexRoute: AppCashIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
+  AppReservationsIndexRoute: AppReservationsIndexRoute,
+  AppSalonIndexRoute: AppSalonIndexRoute,
+  AppSuppliersIndexRoute: AppSuppliersIndexRoute,
+  AppInventoryIngredientsIndexRoute: AppInventoryIngredientsIndexRoute,
   AppMenuProductsIndexRoute: AppMenuProductsIndexRoute,
 }
 

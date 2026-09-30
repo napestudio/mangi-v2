@@ -14,10 +14,11 @@ export const orderItemSchema = z.object({
 });
 export type OrderItemPayload = z.infer<typeof orderItemSchema>;
 
-export const createOrderSchema = z.object({
+const createOrderBaseSchema = z.object({
   type: z.nativeEnum(OrderType).default(OrderType.DINE_IN),
   tableId: z.string().optional(),
   clientId: z.string().optional(),
+  assignedToId: z.string().optional(),
   items: z.array(orderItemSchema).min(1),
   notes: z.string().optional(),
   discountType: z.nativeEnum(DiscountType).optional(),
@@ -29,7 +30,16 @@ export const createOrderSchema = z.object({
   scheduledFor: z.string().datetime().optional(),
   needsInvoice: z.boolean().default(false),
 });
-export type CreateOrderPayload = z.infer<typeof createOrderSchema>;
+
+export const createOrderSchema = createOrderBaseSchema.superRefine((data, ctx) => {
+  if (data.type === OrderType.COUNTER && data.tableId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tableId"], message: "Un pedido de mostrador no puede tener mesa asignada" });
+  }
+  if (data.type === OrderType.DELIVERY && !data.deliveryAddress) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["deliveryAddress"], message: "La dirección de entrega es obligatoria" });
+  }
+});
+export type CreateOrderPayload = z.infer<typeof createOrderBaseSchema>;
 
 export const updateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatus),

@@ -5,7 +5,6 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "incremental": true,
     "noFallthroughCasesInSwitch": false,
     "noUncheckedIndexedAccess": false

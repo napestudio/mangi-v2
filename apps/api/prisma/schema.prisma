@@ -217,6 +217,12 @@ enum PurchaseOrderStatus {
   CANCELLED
 }
 
+enum SupplierLedgerEntryType {
+  PURCHASE
+  PAYMENT
+  ADJUSTMENT
+}
+
 // ─── AUTH & USERS ────────────────────────────────────────────────────────────
 
 model User {
@@ -232,9 +238,15 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  passwordResetTokens PasswordResetToken[]
-  permissionGrants    UserPermissionGrant[]
-  ordersAssigned      Order[]
+  passwordResetTokens   PasswordResetToken[]
+  permissionGrants      UserPermissionGrant[]
+  ordersAssigned        Order[]
+  sessionsOpened        CashRegisterSession[] @relation("SessionOpenedBy")
+  sessionsClosed        CashRegisterSession[] @relation("SessionClosedBy")
+  sessionsReopened      CashRegisterSession[] @relation("SessionReopenedBy")
+  cashMovementsCreated  CashMovement[]
+  stockMovements        StockMovement[]
+  supplierLedgerEntries SupplierLedgerEntry[]
 
   @@index([restaurantId])
 }
@@ -353,6 +365,7 @@ model BusinessHours {
   closeTime    String
   label        String?
 
+  @@unique([restaurantId, dayOfWeek])
   @@index([restaurantId])
 }
 
@@ -452,7 +465,8 @@ model StockMovement {
   reason        String
   notes         String?
   reference     String?
-  createdBy     String?
+  createdById   String?
+  createdBy     User?       @relation(fields: [createdById], references: [id])
   createdAt     DateTime    @default(now())
 
   @@index([restaurantId])
@@ -480,6 +494,7 @@ model Ingredient {
   modifierOptionIngredients ModifierOptionIngredient[]
   stockMovements            StockMovement[]
   purchaseOrderItems        PurchaseOrderItem[]
+  suppliers                 IngredientSupplier[]
 
   @@index([restaurantId])
 }
@@ -582,11 +597,11 @@ model Menu {
 }
 
 model MenuSection {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
-  sortOrder   Int      @default(0)
-  menu        Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  sortOrder   Int     @default(0)
+  menu        Menu    @relation(fields: [menuId], references: [id], onDelete: Cascade)
   menuId      String
 
   itemGroups MenuItemGroup[]
@@ -673,17 +688,20 @@ model Table {
 // ─── RESERVATIONS ────────────────────────────────────────────────────────────
 
 model TimeSlot {
-  id           String     @id @default(cuid())
-  name         String?
-  startTime    String
-  endTime      String
-  daysOfWeek   Int[]
-  capacity     Int
-  price        Decimal?   @db.Decimal(10, 2)
-  isActive     Boolean    @default(true)
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  restaurantId String
-  createdAt    DateTime   @default(now())
+  id                  String     @id @default(cuid())
+  name                String?
+  startTime           String
+  endTime             String
+  daysOfWeek          Int[]
+  capacity            Int
+  price               Decimal?   @db.Decimal(10, 2)
+  turnDurationMinutes Int        @default(90)
+  bufferMinutes       Int        @default(0)
+  slotIntervalMinutes Int        @default(15)
+  isActive            Boolean    @default(true)
+  restaurant          Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId        String
+  createdAt           DateTime   @default(now())
 
   reservations   Reservation[]
   timeSlotTables TimeSlotTable[]
@@ -709,6 +727,7 @@ model Reservation {
   timeSlot            TimeSlot          @relation(fields: [timeSlotId], references: [id])
   timeSlotId          String
   date                DateTime
+  businessDate        DateTime          @db.Date
   partySize           Int
   status              ReservationStatus @default(PENDING)
   guestName           String
@@ -727,6 +746,7 @@ model Reservation {
 
   @@index([restaurantId])
   @@index([date])
+  @@index([businessDate])
 }
 
 model ReservationTable {
@@ -874,10 +894,13 @@ model CashRegisterSession {
   expectedAmount Decimal?           @db.Decimal(10, 2)
   variance       Decimal?           @db.Decimal(10, 2)
   notes          String?
-  openedBy       String?
-  closedBy       String?
+  openedById     String?
+  openedBy       User?              @relation("SessionOpenedBy", fields: [openedById], references: [id])
+  closedById     String?
+  closedBy       User?              @relation("SessionClosedBy", fields: [closedById], references: [id])
   reopenedAt     DateTime?
-  reopenedBy     String?
+  reopenedById   String?
+  reopenedBy     User?              @relation("SessionReopenedBy", fields: [reopenedById], references: [id])
 
   movements CashMovement[]
 
@@ -893,7 +916,8 @@ model CashMovement {
   amount      Decimal               @db.Decimal(10, 2)
   description String?
   reference   String?
-  createdBy   String?
+  createdById String?
+  createdBy   User?                 @relation(fields: [createdById], references: [id])
   createdAt   DateTime              @default(now())
 
   @@index([sessionId])
@@ -1060,6 +1084,7 @@ model Supplier {
   address      String?
   taxId        String?
   notes        String?
+  balance      Decimal    @default(0) @db.Decimal(10, 2)
   isActive     Boolean    @default(true)
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   restaurantId String
@@ -1067,8 +1092,41 @@ model Supplier {
   updatedAt    DateTime   @updatedAt
 
   purchaseOrders PurchaseOrder[]
+  ingredients    IngredientSupplier[]
+  ledgerEntries  SupplierLedgerEntry[]
 
   @@index([restaurantId])
+}
+
+model IngredientSupplier {
+  id           String     @id @default(cuid())
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  ingredientId String
+  supplier     Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId   String
+  supplierSku  String?
+  lastCost     Decimal?   @db.Decimal(10, 4)
+  isPreferred  Boolean    @default(false)
+
+  @@unique([ingredientId, supplierId])
+  @@index([supplierId])
+  @@index([ingredientId])
+}
+
+model SupplierLedgerEntry {
+  id              String                  @id @default(cuid())
+  supplier        Supplier                @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId      String
+  type            SupplierLedgerEntryType
+  amount          Decimal                 @db.Decimal(10, 2)
+  purchaseOrder   PurchaseOrder?          @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId String?
+  description     String?
+  createdBy       User?                   @relation(fields: [createdById], references: [id])
+  createdById     String?
+  createdAt       DateTime                @default(now())
+
+  @@index([supplierId])
 }
 
 model PurchaseOrder {
@@ -1083,7 +1141,8 @@ model PurchaseOrder {
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
 
-  items PurchaseOrderItem[]
+  items         PurchaseOrderItem[]
+  ledgerEntries SupplierLedgerEntry[]
 
   @@index([supplierId])
 }

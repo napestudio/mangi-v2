@@ -1,5 +1,5 @@
 import path from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, globalShortcut, Menu } from "electron";
 import { registerIpcHandlers } from "./ipc-handlers";
 
 const isDev = process.env["NODE_ENV"] === "development";
@@ -17,15 +17,21 @@ function createWindow(): void {
 
   if (isDev) {
     void win.loadURL("http://localhost:5173");
-    win.webContents.openDevTools();
   } else {
     void win.loadFile(path.join(__dirname, "../../../app/dist/index.html"));
   }
 }
 
 void app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   registerIpcHandlers();
   createWindow();
+
+  if (isDev) {
+    globalShortcut.register("F12", () => {
+      BrowserWindow.getFocusedWindow()?.webContents.toggleDevTools();
+    });
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -38,4 +44,8 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });

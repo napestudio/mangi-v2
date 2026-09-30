@@ -1,12 +1,14 @@
-import { createOrderSchema, OrderType, type CreateOrderPayload } from "@mangiar/shared";
+import { createOrderSchema, OrderType, type BusinessHoursStatus, type CreateOrderPayload } from "@mangiar/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { StaffPicker } from "@/components/staff/StaffPicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCurrentUser } from "@/hooks/useAuth";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 
 interface ProductOption {
@@ -21,6 +23,7 @@ export const Route = createFileRoute("/_app/orders/new")({
 function NewOrderPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useCurrentUser();
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -30,17 +33,31 @@ function NewOrderPage() {
     },
   });
 
+  const { data: hoursStatus } = useQuery({
+    queryKey: ["business-hours-status"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ApiEnvelope<BusinessHoursStatus>>("/business-hours/status");
+      return data.data;
+    },
+  });
+
   const {
     register,
     control,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(createOrderSchema),
-    defaultValues: { type: OrderType.DINE_IN, items: [{ productId: "", quantity: 1, modifiers: [] }] },
+    defaultValues: {
+      type: OrderType.DINE_IN,
+      items: [{ productId: "", quantity: 1, modifiers: [] }],
+      assignedToId: user?.id,
+    },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  const selectedType = watch("type");
 
   const createOrder = useMutation({
     mutationFn: async (payload: CreateOrderPayload) => {
@@ -58,6 +75,11 @@ function NewOrderPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold text-neutral-900">Nuevo pedido</h1>
+      {hoursStatus && !hoursStatus.isOpen && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          El local figura cerrado según el horario configurado. Podés cargar el pedido igual.
+        </p>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Detalle del pedido</CardTitle>
@@ -77,6 +99,25 @@ function NewOrderPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {selectedType === OrderType.DELIVERY && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="deliveryAddress">Dirección de entrega</Label>
+                <Input id="deliveryAddress" {...register("deliveryAddress")} />
+                {errors.deliveryAddress && <p className="text-xs text-red-600">{errors.deliveryAddress.message}</p>}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="assignedToId">Asignado a</Label>
+              <Controller
+                control={control}
+                name="assignedToId"
+                render={({ field }) => (
+                  <StaffPicker id="assignedToId" value={field.value} onChange={field.onChange} />
+                )}
+              />
             </div>
 
             <div className="flex flex-col gap-3">

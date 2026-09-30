@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Module } from "@mangiar/shared";
 import type {
   DiscountType as PrismaDiscountType,
   Order as PrismaOrder,
@@ -6,6 +7,7 @@ import type {
   OrderType as PrismaOrderType,
 } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { EventsGateway } from "../websockets/events.gateway";
 import type { CreateOrderDto } from "./dto/create-order.dto";
 import type { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
@@ -25,6 +27,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsGateway: EventsGateway,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   findAll(restaurantId: string): Promise<PrismaOrder[]> {
@@ -46,9 +49,22 @@ export class OrdersService {
     return order;
   }
 
-  async create(restaurantId: string, assignedToId: string, dto: CreateOrderDto): Promise<PrismaOrder> {
+  async create(restaurantId: string, currentUserId: string, dto: CreateOrderDto): Promise<PrismaOrder> {
     const orderType = (dto.type ?? "DINE_IN") as unknown as PrismaOrderType;
     const priceType = toPriceType(orderType);
+
+    if (orderType === "COUNTER" && dto.tableId) {
+      throw new BadRequestException("Counter orders cannot be assigned to a table");
+    }
+    if (orderType === "DELIVERY" && !dto.deliveryAddress) {
+      throw new BadRequestException("Delivery orders require a delivery address");
+    }
+    if (orderType === "DINE_IN" && !dto.tableId) {
+      const activeModules = await this.subscriptionsService.getActiveModules(restaurantId);
+      if (activeModules.includes(Module.SALON)) {
+        throw new BadRequestException("Dine-in orders require a table when the Salón module is active");
+      }
+    }
 
     const productIds = dto.items.map((item) => item.productId);
     const products = await this.prisma.product.findMany({
@@ -57,6 +73,14 @@ export class OrdersService {
     });
     if (products.length !== new Set(productIds).size) {
       throw new BadRequestException("One or more products were not found");
+    }
+
+    const assignedToId = dto.assignedToId ?? currentUserId;
+    if (dto.assignedToId) {
+      const assignee = await this.prisma.user.findFirst({ where: { id: dto.assignedToId, restaurantId } });
+      if (!assignee) {
+        throw new BadRequestException("Assigned user not found");
+      }
     }
 
     const modifierOptionIds = dto.items.flatMap((item) => item.modifiers?.map((modifier) => modifier.optionId) ?? []);
@@ -123,6 +147,11 @@ export class OrdersService {
         subtotal,
         total,
         needsInvoice: dto.needsInvoice ?? false,
+        deliveryAddress: dto.deliveryAddress,
+        deliveryCity: dto.deliveryCity,
+        deliveryPhone: dto.deliveryPhone,
+        deliveryName: dto.deliveryName,
+        scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
         items: { create: itemsData },
       },
       include: ORDER_INCLUDE,
