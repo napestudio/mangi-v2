@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { BusinessHoursStatus } from "@mangiar/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { Link, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import {
   Armchair,
   CalendarClock,
@@ -51,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
 export function AppShell() {
   const { user, restaurant } = useCurrentUser();
   const { hasModule } = useModules();
+  const matchRoute = useMatchRoute();
   const navigate = useNavigate();
   const logout = useLogout();
   const visibleNavItems = NAV_ITEMS.filter((item) => !item.module || hasModule(item.module));
@@ -86,8 +87,8 @@ export function AppShell() {
   }, [restaurant?.id]);
 
   return (
-    <div className="flex h-screen flex-col">
-      <header className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-neutral-200 bg-white px-4">
+    <div className="flex h-screen flex-col bg-neutral-50">
+      <header className="grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center px-4">
         <div className="flex min-w-0 items-center gap-2">
           <p className="truncate text-sm font-semibold text-neutral-900">{restaurant?.name ?? "Mangiar"}</p>
           {hoursStatus && (
@@ -102,22 +103,26 @@ export function AppShell() {
           )}
         </div>
 
-        <nav className="flex items-center gap-1">
-          {visibleNavItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              title={item.label}
-              aria-label={item.label}
-              className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-md text-neutral-500",
-                "hover:bg-neutral-100 hover:text-neutral-900",
-              )}
-              activeProps={{ className: "bg-neutral-900 text-white hover:bg-neutral-900 hover:text-white" }}
-            >
-              <item.icon className="h-5 w-5" />
-            </Link>
-          ))}
+        <nav className="flex items-center gap-1 rounded-full bg-white px-2 py-1.5 shadow-md">
+          {visibleNavItems.map((item) => {
+            const isActive = !!matchRoute({ to: item.to, fuzzy: true });
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                title={item.label}
+                aria-label={item.label}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-full",
+                  isActive
+                    ? "bg-red-500 text-white"
+                    : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900",
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center justify-end gap-3">
@@ -127,7 +132,7 @@ export function AppShell() {
             onClick={handleLogout}
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
-            className="flex h-10 w-10 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
           >
             <LogOut className="h-5 w-5" />
           </button>

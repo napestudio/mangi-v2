@@ -14,7 +14,8 @@ Para convenciones de backend/arquitectura ver `mangiar-architecture`. Esta skill
 ## Navegación
 
 - **Regla**: la nav de `AppShell` es una barra superior, centrada, **solo iconos** (`lucide-react`), sin texto ni sidebar. `title`/`aria-label` llevan el label en español para accesibilidad, pero no se muestra como texto visible.
-- **Excepción documentada**: la sección de Configuración (`/settings/*`) usa deliberadamente un sidebar a la izquierda con texto (`apps/app/src/routes/_app/settings/route.tsx`) — fue un pedido explícito del usuario, no una inconsistencia a corregir. Nuevas páginas de configuración se agregan a `SETTINGS_NAV_ITEMS` ahí, no al nav superior.
+- **Forma**: el `<nav>` es una píldora blanca flotante — `rounded-full bg-white shadow-md` — sobre fondo general `bg-neutral-50` (puesto en el contenedor raíz de `AppShell`), no una barra blanca de borde a borde. Cada ítem es un botón circular (`rounded-full`, hit-box 40×40). El ítem activo (vía `activeProps` de TanStack Router) se ve como un círculo sólido `bg-red-500 text-white` — ver `apps/app/src/components/layout/AppShell.tsx`.
+- **Excepción documentada**: la sección de Configuración (`/settings/*`) usa deliberadamente un sidebar a la izquierda con texto (`apps/app/src/routes/_app/settings/route.tsx`) — fue un pedido explícito del usuario, no una inconsistencia a corregir. Nuevas páginas de configuración se agregan a `SETTINGS_NAV_ITEMS` ahí, no al nav superior. El `<aside>` de ese sidebar lleva fondo de marca `rounded-2xl bg-red-500`, texto blanco para ítems inactivos, y el ítem activo es una píldora blanca con texto `red-500`.
 - Un ítem de nav opcional por módulo lleva `module: Module.X` y se filtra con `useModules().hasModule()`.
 
 ## Patrón CRUD estándar (DataTable + SidePanel)
@@ -28,6 +29,9 @@ Casi toda pantalla de listado sigue el mismo esqueleto, visto en `suppliers/inde
 ## Componentes y estilos
 
 - Componentes de UI propios en Tailwind v4 (`apps/app/src/components/ui/`) — **nunca** shadcn/ui, es una decisión de proyecto de larga data.
+- **Color de marca**: `red-500` (paleta default de Tailwind, sin token custom) es el rojo principal — se usa en toda acción principal/positiva (`<Button>` sin `variant`, ej. "Guardar cambios", "Cerrar orden", "Confirmar pago", "Cobrar") y en el fondo del sidebar de Configuración. Ver `apps/app/src/components/ui/button.tsx`: el variant `default` es `bg-red-500 text-white hover:bg-red-600`.
+- **Botones destructivos** (`variant="destructive"`, ej. "Eliminar X") usan `red-700` (un escalón más oscuro que el `red-500` primario, para no confundirse con una acción positiva) y **siempre** muestran un ícono de tacho (`Trash2` de lucide-react) — lo agrega automáticamente el componente `Button` cuando `variant === "destructive"`, no hace falta (ni se debe) pasarlo a mano en los `children`.
+- Una acción de "cerrar/confirmar" (ej. "Cerrar caja") no es destructiva aunque termine una sesión — usa el variant `default` (rojo de marca), no `destructive`. El criterio es: ¿borra o elimina algo? → `destructive`. ¿Confirma, cierra o guarda? → `default`.
 - Solo modo claro: `color-scheme: light` fijo en `index.css` (no `light dark`). El bug real que esto arregló: con `light dark` + un OS en modo oscuro, inputs con `bg-white` hardcodeado mostraban texto blanco sobre blanco invisible. La app no tiene soporte de dark mode, no agregarlo a medias.
 - Labels de UI siempre en español (incluyendo unidades: "Kilogramo" no "Kilogram", etc.) — convención confirmada explícitamente por el usuario para toda la interfaz, no solo para inventario donde se pidió primero.
 

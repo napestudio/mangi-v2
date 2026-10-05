@@ -344,7 +344,7 @@ function MapSettingsPage() {
                 onClick={() => deleteTable.mutate(tablePanel.selected!.id)}
                 disabled={deleteTable.isPending}
               >
-                <Trash2 className="h-4 w-4" /> Eliminar
+                Eliminar
               </Button>
             </div>
           </div>

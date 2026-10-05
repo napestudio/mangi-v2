@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
+import { Trash2 } from "lucide-react";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
@@ -7,10 +8,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-neutral-900 text-white hover:bg-neutral-800",
+        default: "bg-red-500 text-white hover:bg-red-600",
         outline: "border border-neutral-300 bg-white hover:bg-neutral-50",
         ghost: "hover:bg-neutral-100",
-        destructive: "bg-red-600 text-white hover:bg-red-700",
+        destructive: "bg-red-700 text-white hover:bg-red-800",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -30,8 +31,11 @@ export interface ButtonProps
     VariantProps<typeof buttonVariants> {}
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => (
-    <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+  ({ className, variant, size, children, ...props }, ref) => (
+    <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props}>
+      {variant === "destructive" && <Trash2 className="h-4 w-4" />}
+      {children}
+    </button>
   ),
 );
 Button.displayName = "Button";

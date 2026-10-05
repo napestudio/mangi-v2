@@ -3,7 +3,7 @@ import { Module, UnitType, VolumeUnit, WeightUnit } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ModuleGuard } from "@/components/guards/ModuleGuard";
 import { StockSection } from "@/components/inventory/StockSection";
 import { Button } from "@/components/ui/button";
@@ -217,7 +217,7 @@ function IngredientsPage() {
               disabled={deleteIngredient.isPending}
               className="w-fit"
             >
-              <Trash2 className="h-4 w-4" /> Eliminar ingrediente
+              Eliminar ingrediente
             </Button>
           </div>
         )}
