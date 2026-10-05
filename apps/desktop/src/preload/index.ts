@@ -11,5 +11,8 @@ contextBridge.exposeInMainWorld("electron", {
   shell: {
     openExternal: (url: string) => shell.openExternal(url),
   },
+  print: {
+    job: (printJob: unknown, accessToken: string | null) => ipcRenderer.invoke("print:job", printJob, accessToken),
+  },
   platform: process.platform,
 });

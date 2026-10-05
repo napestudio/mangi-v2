@@ -36,5 +36,7 @@ export const updateRestaurantSchema = z.object({
   accentColor: z.string().optional(),
   notificationEmail: z.string().email().optional(),
   printerServerUrl: z.string().url().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 });
 export type UpdateRestaurantPayload = z.infer<typeof updateRestaurantSchema>;

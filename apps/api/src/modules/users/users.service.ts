@@ -29,12 +29,30 @@ type SafeUser = {
   updatedAt: Date;
 };
 
+const STAFF_ROSTER_SELECT = {
+  id: true,
+  name: true,
+  username: true,
+  role: true,
+} as const;
+
+type StaffRosterItem = {
+  id: string;
+  name: string | null;
+  username: string;
+  role: string;
+};
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   findAll(restaurantId: string): Promise<SafeUser[]> {
     return this.prisma.user.findMany({ where: { restaurantId }, select: USER_SELECT });
+  }
+
+  findRoster(restaurantId: string): Promise<StaffRosterItem[]> {
+    return this.prisma.user.findMany({ where: { restaurantId }, select: STAFF_ROSTER_SELECT });
   }
 
   async findOne(restaurantId: string, id: string): Promise<SafeUser> {

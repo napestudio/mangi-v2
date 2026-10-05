@@ -10,9 +10,11 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
-import type { TableStatus } from "@mangiar/shared";
+import { SkipThrottle } from "@nestjs/throttler";
+import { TableStatus } from "@mangiar/shared";
 import type { Server, Socket } from "socket.io";
 import type { AccessTokenPayload } from "../auth/types";
+import { TablesService } from "../salon/tables.service";
 
 interface SubscribeRestaurantPayload {
   restaurantId: string;
@@ -25,6 +27,7 @@ interface UpdateTableStatusPayload {
   status: TableStatus;
 }
 
+@SkipThrottle()
 @WebSocketGateway({ cors: { origin: true, credentials: true } })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -35,6 +38,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly tablesService: TablesService,
   ) {}
 
   async handleConnection(client: Socket): Promise<void> {
@@ -63,11 +67,21 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage("table:update_status")
-  handleTableUpdateStatus(@MessageBody() body: UpdateTableStatusPayload): void {
-    this.server.to(this.restaurantRoom(body.restaurantId)).emit("table:status_changed", {
-      id: body.tableId,
-      status: body.status,
-    });
+  async handleTableUpdateStatus(@MessageBody() body: UpdateTableStatusPayload): Promise<void> {
+    if (!Object.values(TableStatus).includes(body.status)) {
+      this.logger.warn(`Rejected invalid table status "${body.status}" for table ${body.tableId}`);
+      return;
+    }
+
+    try {
+      const table = await this.tablesService.updateStatus(body.restaurantId, body.tableId, { status: body.status });
+      this.server.to(this.restaurantRoom(body.restaurantId)).emit("table:status_changed", {
+        id: table.id,
+        status: table.status,
+      });
+    } catch {
+      this.logger.warn(`Rejected table status update for unknown table ${body.tableId} in restaurant ${body.restaurantId}`);
+    }
   }
 
   emitOrderCreated(restaurantId: string, order: unknown): void {

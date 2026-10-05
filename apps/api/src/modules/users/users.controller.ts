@@ -24,6 +24,12 @@ export class UsersController {
     return this.usersService.findAll(requireRestaurantId(user));
   }
 
+  @Get("roster")
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE, UserRole.WAITER)
+  findRoster(@CurrentUser() user: RequestUser) {
+    return this.usersService.findRoster(requireRestaurantId(user));
+  }
+
   @Get(":id")
   findOne(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.usersService.findOne(requireRestaurantId(user), id);

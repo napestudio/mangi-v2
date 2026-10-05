@@ -1,5 +1,16 @@
 import { Type } from "class-transformer";
-import { IsArray, IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+} from "class-validator";
 import { DiscountType, OrderType } from "@mangiar/shared";
 
 export class OrderItemModifierDto {
@@ -28,6 +39,7 @@ export class CreateOrderDto {
   @IsOptional() @IsEnum(OrderType) type?: OrderType;
   @IsOptional() @IsString() tableId?: string;
   @IsOptional() @IsString() clientId?: string;
+  @IsOptional() @IsString() assignedToId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -38,4 +50,11 @@ export class CreateOrderDto {
   @IsOptional() @IsEnum(DiscountType) discountType?: DiscountType;
   @IsOptional() @IsNumber() @Min(0) discountValue?: number;
   @IsOptional() @IsBoolean() needsInvoice?: boolean;
+
+  @IsOptional() @IsString() deliveryAddress?: string;
+  @IsOptional() @IsString() deliveryCity?: string;
+  @IsOptional() @IsString() deliveryPhone?: string;
+  @IsOptional() @IsString() deliveryName?: string;
+  @IsOptional() @IsString() deliveryZoneId?: string;
+  @IsOptional() @IsDateString() scheduledFor?: string;
 }

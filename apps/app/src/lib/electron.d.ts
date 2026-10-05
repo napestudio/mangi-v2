@@ -13,6 +13,9 @@ declare global {
       shell: {
         openExternal: (url: string) => Promise<void>;
       };
+      print: {
+        job: (printJob: unknown, accessToken: string | null) => Promise<void>;
+      };
       platform: "win32" | "darwin" | "linux";
     };
   }

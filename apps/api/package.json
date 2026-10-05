@@ -40,6 +40,7 @@
     "bull": "^4.16.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "facturas": "^0.22.1",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
     "passport": "^0.7.0",

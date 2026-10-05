@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, IsUrl } from "class-validator";
+import { IsEmail, IsLatitude, IsLongitude, IsOptional, IsString, IsUrl } from "class-validator";
 
 export class UpdateRestaurantDto {
   @IsOptional() @IsString() name?: string;
@@ -20,4 +20,6 @@ export class UpdateRestaurantDto {
   @IsOptional() @IsString() accentColor?: string;
   @IsOptional() @IsEmail() notificationEmail?: string;
   @IsOptional() @IsUrl() printerServerUrl?: string;
+  @IsOptional() @IsLatitude() latitude?: number;
+  @IsOptional() @IsLongitude() longitude?: number;
 }
