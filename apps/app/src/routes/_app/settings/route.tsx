@@ -1,5 +1,5 @@
 import { Module } from "@mangiar/shared";
-import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useMatchRoute } from "@tanstack/react-router";
 import { useModules } from "@/hooks/useModules";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,11 @@ interface SettingsNavItem {
 const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { label: "Restaurante", to: "/settings/restaurant" },
   { label: "Salón", to: "/settings/map", module: Module.SALON },
-  { label: "Reservas", to: "/settings/reservations", module: Module.RESERVATIONS },
+  {
+    label: "Reservas",
+    to: "/settings/reservations",
+    module: Module.RESERVATIONS,
+  },
   { label: "Delivery", to: "/settings/delivery", module: Module.DELIVERY },
   { label: "Facturación", to: "/settings/fiscal", module: Module.FISCAL },
   { label: "Impresión", to: "/settings/printing", module: Module.PRINTING },
@@ -24,26 +28,36 @@ export const Route = createFileRoute("/_app/settings")({
 
 function SettingsLayout() {
   const { hasModule } = useModules();
-  const visibleItems = SETTINGS_NAV_ITEMS.filter((item) => !item.module || hasModule(item.module));
+  const matchRoute = useMatchRoute();
+  const visibleItems = SETTINGS_NAV_ITEMS.filter(
+    (item) => !item.module || hasModule(item.module),
+  );
 
   return (
-    <div className="flex gap-8">
-      <aside className="w-48 shrink-0">
-        <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">Configuración</p>
+    <div className="flex h-full gap-8">
+      <aside className="w-48 shrink-0 rounded-2xl bg-red-500 p-4">
+        <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wide text-white/70">
+          Configuración
+        </p>
         <nav className="flex flex-col gap-1">
-          {visibleItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="rounded-md px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
-              activeProps={{ className: cn("bg-neutral-900 text-white hover:bg-neutral-900") }}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {visibleItems.map((item) => {
+            const isActive = !!matchRoute({ to: item.to, fuzzy: true });
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "rounded-md px-3 py-2 text-sm font-medium",
+                  isActive ? "bg-white text-red-500" : "text-white hover:bg-white/10",
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </aside>
-      <div className="min-w-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <Outlet />
       </div>
     </div>

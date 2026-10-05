@@ -3,7 +3,7 @@ import { Module } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
@@ -269,7 +269,7 @@ function ReservationSettingsPage() {
               disabled={deleteTimeSlot.isPending}
               className="w-fit"
             >
-              <Trash2 className="h-4 w-4" /> Eliminar turno
+              Eliminar turno
             </Button>
           </div>
         )}

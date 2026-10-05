@@ -351,7 +351,7 @@ function CashPage() {
                   onChange={(event) => setClosingAmount(event.target.value)}
                 />
                 <StaffPicker value={closedById} onChange={setClosedById} />
-                <Button size="sm" variant="destructive" onClick={() => closeSession.mutate()} disabled={closeSession.isPending}>
+                <Button size="sm" onClick={() => closeSession.mutate()} disabled={closeSession.isPending}>
                   Cerrar caja
                 </Button>
               </div>
