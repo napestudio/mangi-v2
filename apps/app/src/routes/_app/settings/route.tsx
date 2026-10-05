@@ -13,6 +13,9 @@ const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { label: "Restaurante", to: "/settings/restaurant" },
   { label: "Salón", to: "/settings/map", module: Module.SALON },
   { label: "Reservas", to: "/settings/reservations", module: Module.RESERVATIONS },
+  { label: "Delivery", to: "/settings/delivery", module: Module.DELIVERY },
+  { label: "Facturación", to: "/settings/fiscal", module: Module.FISCAL },
+  { label: "Impresión", to: "/settings/printing", module: Module.PRINTING },
 ];
 
 export const Route = createFileRoute("/_app/settings")({

@@ -5,13 +5,18 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import configuration from "./config/configuration";
 import { validate } from "./config/env.validation";
+import { AuditModule } from "./common/audit/audit.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BusinessHoursModule } from "./modules/business-hours/business-hours.module";
 import { CashModule } from "./modules/cash/cash.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
+import { DeliveryModule } from "./modules/delivery/delivery.module";
+import { ExpensesModule } from "./modules/expenses/expenses.module";
+import { FiscalModule } from "./modules/fiscal/fiscal.module";
 import { HealthModule } from "./modules/health/health.module";
+import { PrintingModule } from "./modules/printing/printing.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -47,6 +52,7 @@ import { WebsocketsModule } from "./modules/websockets/websockets.module";
     }),
     RedisModule,
     PrismaModule,
+    AuditModule,
     AuthModule,
     UsersModule,
     RestaurantsModule,
@@ -59,6 +65,10 @@ import { WebsocketsModule } from "./modules/websockets/websockets.module";
     CashModule,
     ReservationsModule,
     SuppliersModule,
+    ExpensesModule,
+    DeliveryModule,
+    FiscalModule,
+    PrintingModule,
     SubscriptionsModule,
     WebsocketsModule,
     HealthModule,

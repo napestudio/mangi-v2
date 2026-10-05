@@ -11,4 +11,8 @@ export * from "./schemas/business-hours.schema";
 export * from "./schemas/reservations.schema";
 export * from "./schemas/inventory.schema";
 export * from "./schemas/suppliers.schema";
+export * from "./schemas/expenses.schema";
+export * from "./schemas/delivery.schema";
+export * from "./schemas/fiscal.schema";
+export * from "./schemas/printing.schema";
 export * from "./utils/time-grid";

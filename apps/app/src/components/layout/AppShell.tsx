@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { BusinessHoursStatus } from "@mangiar/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
@@ -5,10 +6,13 @@ import {
   Armchair,
   CalendarClock,
   ClipboardList,
+  FileText,
   LayoutDashboard,
   LogOut,
   Package,
+  Receipt,
   Settings,
+  ShoppingBag,
   Truck,
   UtensilsCrossed,
   Wallet,
@@ -18,7 +22,9 @@ import { Module } from "@mangiar/shared";
 import { useCurrentUser, useLogout } from "@/hooks/useAuth";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { connectSocket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
 
 interface NavItem {
   label: string;
@@ -30,12 +36,15 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
   { label: "Pedidos", to: "/orders", icon: ClipboardList },
+  { label: "Venta rápida", to: "/pos/counter", icon: ShoppingBag },
   { label: "Menú", to: "/menu/products", icon: UtensilsCrossed },
   { label: "Salón", to: "/salon", icon: Armchair, module: Module.SALON },
   { label: "Reservas", to: "/reservations", icon: CalendarClock, module: Module.RESERVATIONS },
   { label: "Inventario", to: "/inventory/ingredients", icon: Package, module: Module.INVENTORY },
   { label: "Proveedores", to: "/suppliers", icon: Truck, module: Module.SUPPLIERS },
   { label: "Caja", to: "/cash", icon: Wallet, module: Module.CASH },
+  { label: "Gastos", to: "/expenses", icon: Receipt, module: Module.EXPENSES },
+  { label: "Facturas", to: "/invoices", icon: FileText, module: Module.FISCAL },
   { label: "Configuración", to: "/settings/restaurant", icon: Settings },
 ];
 
@@ -60,6 +69,21 @@ export function AppShell() {
       onSettled: () => navigate({ to: "/login" }),
     });
   };
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+
+    const socket = connectSocket(restaurant.id);
+    const handlePrintJob = ({ printJob }: { printJob: unknown }) => {
+      const accessToken = useAuthStore.getState().accessToken;
+      void window.electron?.print?.job(printJob, accessToken);
+    };
+    socket.on("print:job", handlePrintJob);
+
+    return () => {
+      socket.off("print:job", handlePrintJob);
+    };
+  }, [restaurant?.id]);
 
   return (
     <div className="flex h-screen flex-col">

@@ -1,4 +1,4 @@
-import { createOrderSchema, OrderType, type BusinessHoursStatus, type CreateOrderPayload } from "@mangiar/shared";
+import { createOrderSchema, Module, OrderType, type BusinessHoursStatus, type CreateOrderPayload } from "@mangiar/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -9,11 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/hooks/useAuth";
+import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 
 interface ProductOption {
   id: string;
   name: string;
+}
+
+interface DeliveryZoneOption {
+  id: string;
+  name: string;
+  fee: string;
+  isActive: boolean;
 }
 
 export const Route = createFileRoute("/_app/orders/new")({
@@ -24,6 +32,7 @@ function NewOrderPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const { hasModule } = useModules();
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -58,6 +67,15 @@ function NewOrderPage() {
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const selectedType = watch("type");
+
+  const { data: deliveryZones } = useQuery({
+    queryKey: ["delivery-zones"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ApiEnvelope<DeliveryZoneOption[]>>("/delivery-zones");
+      return data.data;
+    },
+    enabled: hasModule(Module.DELIVERY) && selectedType === OrderType.DELIVERY,
+  });
 
   const createOrder = useMutation({
     mutationFn: async (payload: CreateOrderPayload) => {
@@ -106,6 +124,26 @@ function NewOrderPage() {
                 <Label htmlFor="deliveryAddress">Dirección de entrega</Label>
                 <Input id="deliveryAddress" {...register("deliveryAddress")} />
                 {errors.deliveryAddress && <p className="text-xs text-red-600">{errors.deliveryAddress.message}</p>}
+              </div>
+            )}
+
+            {selectedType === OrderType.DELIVERY && hasModule(Module.DELIVERY) && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="deliveryZoneId">Zona de entrega</Label>
+                <select
+                  id="deliveryZoneId"
+                  className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm"
+                  {...register("deliveryZoneId")}
+                >
+                  <option value="">Sin zona (costo de envío por defecto)</option>
+                  {deliveryZones
+                    ?.filter((zone) => zone.isActive)
+                    .map((zone) => (
+                      <option key={zone.id} value={zone.id}>
+                        {zone.name} — ${zone.fee}
+                      </option>
+                    ))}
+                </select>
               </div>
             )}
 

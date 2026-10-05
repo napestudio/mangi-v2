@@ -16,6 +16,8 @@ export enum Module {
   FISCAL = "FISCAL",
   SUPPLIERS = "SUPPLIERS",
   ANALYTICS = "ANALYTICS",
+  EXPENSES = "EXPENSES",
+  PRINTING = "PRINTING",
 }
 
 export enum SubscriptionStatus {
@@ -204,4 +206,26 @@ export enum PurchaseOrderStatus {
   ORDERED = "ORDERED",
   RECEIVED = "RECEIVED",
   CANCELLED = "CANCELLED",
+}
+
+export enum DeliveryZoneType {
+  RADIUS = "RADIUS",
+  POLYGON = "POLYGON",
+}
+
+export enum ExpenseCategory {
+  MAINTENANCE = "MAINTENANCE",
+  UTILITIES = "UTILITIES",
+  SUPPLIES = "SUPPLIES",
+  RENT = "RENT",
+  PAYROLL = "PAYROLL",
+  MARKETING = "MARKETING",
+  TAXES = "TAXES",
+  OTHER = "OTHER",
+}
+
+export enum AuditAction {
+  CASH_SESSION_REOPENED = "CASH_SESSION_REOPENED",
+  EXPENSE_UPDATED = "EXPENSE_UPDATED",
+  EXPENSE_DELETED = "EXPENSE_DELETED",
 }

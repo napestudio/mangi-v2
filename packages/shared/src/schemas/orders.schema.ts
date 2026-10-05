@@ -27,6 +27,7 @@ const createOrderBaseSchema = z.object({
   deliveryCity: z.string().optional(),
   deliveryPhone: z.string().optional(),
   deliveryName: z.string().optional(),
+  deliveryZoneId: z.string().optional(),
   scheduledFor: z.string().datetime().optional(),
   needsInvoice: z.boolean().default(false),
 });
@@ -51,3 +52,9 @@ export const payOrderSchema = z.object({
   paymentMethodExt: z.nativeEnum(PaymentMethodExtended).optional(),
 });
 export type PayOrderPayload = z.infer<typeof payOrderSchema>;
+
+export const checkoutOrderSchema = z.object({
+  paymentMethodExt: z.nativeEnum(PaymentMethodExtended),
+  sessionId: z.string().optional(),
+});
+export type CheckoutOrderPayload = z.infer<typeof checkoutOrderSchema>;

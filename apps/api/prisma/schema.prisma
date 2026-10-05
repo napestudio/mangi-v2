@@ -27,6 +27,25 @@ enum Module {
   FISCAL
   SUPPLIERS
   ANALYTICS
+  EXPENSES
+  PRINTING
+}
+
+enum ExpenseCategory {
+  MAINTENANCE
+  UTILITIES
+  SUPPLIES
+  RENT
+  PAYROLL
+  MARKETING
+  TAXES
+  OTHER
+}
+
+enum AuditAction {
+  CASH_SESSION_REOPENED
+  EXPENSE_UPDATED
+  EXPENSE_DELETED
 }
 
 enum SubscriptionStatus {
@@ -247,6 +266,8 @@ model User {
   cashMovementsCreated  CashMovement[]
   stockMovements        StockMovement[]
   supplierLedgerEntries SupplierLedgerEntry[]
+  expensesPaid          Expense[]
+  auditLogs             AuditLog[]
 
   @@index([restaurantId])
 }
@@ -297,6 +318,8 @@ model Restaurant {
   accentColor       String?
   notificationEmail String?
   printerServerUrl  String?
+  latitude          Float?
+  longitude         Float?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -325,6 +348,8 @@ model Restaurant {
   homePageLinks    HomePageLink[]
   stockMovements   StockMovement[]
   syncLogs         SyncLog[]
+  expenses         Expense[]
+  auditLogs        AuditLog[]
 }
 
 model ReservedSlug {
@@ -762,38 +787,42 @@ model ReservationTable {
 // ─── ORDERS ──────────────────────────────────────────────────────────────────
 
 model Order {
-  id               String                 @id @default(cuid())
-  restaurant       Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  restaurantId     String
-  type             OrderType              @default(DINE_IN)
-  status           OrderStatus            @default(PENDING)
-  table            Table?                 @relation(fields: [tableId], references: [id])
-  tableId          String?
-  client           Client?                @relation(fields: [clientId], references: [id])
-  clientId         String?
-  assignedTo       User?                  @relation(fields: [assignedToId], references: [id])
-  assignedToId     String?
-  paymentMethod    PaymentMethod?
-  paymentMethodExt PaymentMethodExtended?
-  subtotal         Decimal                @default(0) @db.Decimal(10, 2)
-  discountType     DiscountType?
-  discountValue    Decimal?               @db.Decimal(10, 2)
-  discountAmount   Decimal                @default(0) @db.Decimal(10, 2)
-  deliveryFee      Decimal                @default(0) @db.Decimal(10, 2)
-  total            Decimal                @default(0) @db.Decimal(10, 2)
-  notes            String?
-  deliveryAddress  String?
-  deliveryCity     String?
-  deliveryPhone    String?
-  deliveryName     String?
-  scheduledFor     DateTime?
-  needsInvoice     Boolean                @default(false)
-  openedAt         DateTime               @default(now())
-  closedAt         DateTime?
-  cancelledAt      DateTime?
-  cancelReason     String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  id                String                 @id @default(cuid())
+  restaurant        Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId      String
+  type              OrderType              @default(DINE_IN)
+  status            OrderStatus            @default(PENDING)
+  table             Table?                 @relation(fields: [tableId], references: [id])
+  tableId           String?
+  client            Client?                @relation(fields: [clientId], references: [id])
+  clientId          String?
+  assignedTo        User?                  @relation(fields: [assignedToId], references: [id])
+  assignedToId      String?
+  paymentMethod     PaymentMethod?
+  paymentMethodExt  PaymentMethodExtended?
+  subtotal          Decimal                @default(0) @db.Decimal(10, 2)
+  discountType      DiscountType?
+  discountValue     Decimal?               @db.Decimal(10, 2)
+  discountAmount    Decimal                @default(0) @db.Decimal(10, 2)
+  deliveryFee       Decimal                @default(0) @db.Decimal(10, 2)
+  total             Decimal                @default(0) @db.Decimal(10, 2)
+  notes             String?
+  deliveryAddress   String?
+  deliveryCity      String?
+  deliveryPhone     String?
+  deliveryName      String?
+  deliveryZone      DeliveryZone?          @relation(fields: [deliveryZoneId], references: [id])
+  deliveryZoneId    String?
+  deliveryLatitude  Float?
+  deliveryLongitude Float?
+  scheduledFor      DateTime?
+  needsInvoice      Boolean                @default(false)
+  openedAt          DateTime               @default(now())
+  closedAt          DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   items    OrderItem[]
   invoices Invoice[]
@@ -801,6 +830,7 @@ model Order {
   @@index([restaurantId])
   @@index([restaurantId, status])
   @@index([tableId])
+  @@index([deliveryZoneId])
 }
 
 model OrderItem {
@@ -920,7 +950,51 @@ model CashMovement {
   createdBy   User?                 @relation(fields: [createdById], references: [id])
   createdAt   DateTime              @default(now())
 
+  expense             Expense?
+  supplierLedgerEntry SupplierLedgerEntry?
+
   @@index([sessionId])
+}
+
+model Expense {
+  id             String                @id @default(cuid())
+  restaurant     Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId   String
+  category       ExpenseCategory       @default(OTHER)
+  description    String
+  vendor         String?
+  amount         Decimal               @db.Decimal(10, 2)
+  paidMethod     PaymentMethodExtended @default(CASH)
+  paidBy         User?                 @relation(fields: [paidById], references: [id])
+  paidById       String?
+  expenseDate    DateTime              @default(now())
+  receiptUrl     String?
+  cashMovement   CashMovement?         @relation(fields: [cashMovementId], references: [id])
+  cashMovementId String?               @unique
+  notes          String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([restaurantId])
+  @@index([restaurantId, expenseDate])
+}
+
+// ─── AUDIT ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  actor        User?       @relation(fields: [actorId], references: [id])
+  actorId      String?
+  action       AuditAction
+  entityType   String
+  entityId     String
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+
+  @@index([restaurantId, createdAt])
+  @@index([entityType, entityId])
 }
 
 // ─── DELIVERY ────────────────────────────────────────────────────────────────
@@ -933,12 +1007,38 @@ model DeliveryConfig {
   minOrderAmount   Decimal?   @db.Decimal(10, 2)
   deliveryFee      Decimal    @default(0) @db.Decimal(10, 2)
   estimatedMinutes Int?
-  coverageRadius   Float?
   menu             Menu?      @relation(fields: [menuId], references: [id])
   menuId           String?
   notes            String?
 
   windows DeliveryWindow[]
+  zones   DeliveryZone[]
+}
+
+enum DeliveryZoneType {
+  RADIUS
+  POLYGON
+}
+
+model DeliveryZone {
+  id               String           @id @default(cuid())
+  deliveryConfig   DeliveryConfig   @relation(fields: [deliveryConfigId], references: [id], onDelete: Cascade)
+  deliveryConfigId String
+  name             String
+  type             DeliveryZoneType @default(RADIUS)
+  minRadiusMeters  Float?
+  maxRadiusMeters  Float?
+  polygon          Json?
+  fee              Decimal          @db.Decimal(10, 2)
+  estimatedMinutes Int?
+  priority         Int              @default(0)
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  orders Order[]
+
+  @@index([deliveryConfigId])
 }
 
 model DeliveryWindow {
@@ -969,6 +1069,7 @@ model FiscalConfiguration {
   invoiceTypeA     Int?
   invoiceTypeB     Int?
   invoiceTypeC     Int?
+  issuerCondition  String     @default("monotributo")
   environment      String     @default("testing")
   wsaaToken        String?    @db.Text
   wsaaSign         String?    @db.Text
@@ -1124,6 +1225,8 @@ model SupplierLedgerEntry {
   description     String?
   createdBy       User?                   @relation(fields: [createdById], references: [id])
   createdById     String?
+  cashMovement    CashMovement?           @relation(fields: [cashMovementId], references: [id])
+  cashMovementId  String?                 @unique
   createdAt       DateTime                @default(now())
 
   @@index([supplierId])

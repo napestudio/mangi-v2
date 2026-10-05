@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { sqlite } from "./db";
+import { handlePrintJob, type IncomingPrintJob } from "./printing";
 import { store } from "./store";
 
 export function registerIpcHandlers(): void {
@@ -20,4 +21,8 @@ export function registerIpcHandlers(): void {
     }
     store.set(key, value);
   });
+
+  ipcMain.handle("print:job", (_event, printJob: IncomingPrintJob, accessToken: string | null) =>
+    handlePrintJob(printJob, accessToken),
+  );
 }

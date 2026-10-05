@@ -17,12 +17,18 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-pa
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
+import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
+import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
+import { Route as AppPosCounterRouteImport } from './routes/_app/pos/counter'
 import { Route as AppReservationsIndexRouteImport } from './routes/_app/reservations/index'
 import { Route as AppReservationsNewRouteImport } from './routes/_app/reservations/new'
 import { Route as AppSalonIndexRouteImport } from './routes/_app/salon/index'
+import { Route as AppSettingsDeliveryRouteImport } from './routes/_app/settings/delivery'
+import { Route as AppSettingsFiscalRouteImport } from './routes/_app/settings/fiscal'
 import { Route as AppSettingsMapRouteImport } from './routes/_app/settings/map'
+import { Route as AppSettingsPrintingRouteImport } from './routes/_app/settings/printing'
 import { Route as AppSettingsReservationsRouteImport } from './routes/_app/settings/reservations'
 import { Route as AppSettingsRestaurantRouteImport } from './routes/_app/settings/restaurant'
 import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
@@ -68,6 +74,16 @@ const AppCashIndexRoute = AppCashIndexRouteImport.update({
   path: '/cash/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppExpensesIndexRoute = AppExpensesIndexRouteImport.update({
+  id: '/expenses/',
+  path: '/expenses/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
+  id: '/invoices/',
+  path: '/invoices/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
@@ -76,6 +92,11 @@ const AppOrdersIndexRoute = AppOrdersIndexRouteImport.update({
 const AppOrdersNewRoute = AppOrdersNewRouteImport.update({
   id: '/orders/new',
   path: '/orders/new',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppPosCounterRoute = AppPosCounterRouteImport.update({
+  id: '/pos/counter',
+  path: '/pos/counter',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppReservationsIndexRoute = AppReservationsIndexRouteImport.update({
@@ -93,9 +114,24 @@ const AppSalonIndexRoute = AppSalonIndexRouteImport.update({
   path: '/salon/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppSettingsDeliveryRoute = AppSettingsDeliveryRouteImport.update({
+  id: '/delivery',
+  path: '/delivery',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
+const AppSettingsFiscalRoute = AppSettingsFiscalRouteImport.update({
+  id: '/fiscal',
+  path: '/fiscal',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
 const AppSettingsMapRoute = AppSettingsMapRouteImport.update({
   id: '/map',
   path: '/map',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
+const AppSettingsPrintingRoute = AppSettingsPrintingRouteImport.update({
+  id: '/printing',
+  path: '/printing',
   getParentRoute: () => AppSettingsRouteRoute,
 } as any)
 const AppSettingsReservationsRoute = AppSettingsReservationsRouteImport.update({
@@ -138,12 +174,18 @@ export interface FileRoutesByFullPath {
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/pos/counter': typeof AppPosCounterRoute
   '/reservations/new': typeof AppReservationsNewRoute
+  '/settings/delivery': typeof AppSettingsDeliveryRoute
+  '/settings/fiscal': typeof AppSettingsFiscalRoute
   '/settings/map': typeof AppSettingsMapRoute
+  '/settings/printing': typeof AppSettingsPrintingRoute
   '/settings/reservations': typeof AppSettingsReservationsRoute
   '/settings/restaurant': typeof AppSettingsRestaurantRoute
   '/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
   '/cash/': typeof AppCashIndexRoute
+  '/expenses/': typeof AppExpensesIndexRoute
+  '/invoices/': typeof AppInvoicesIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/reservations/': typeof AppReservationsIndexRoute
   '/salon/': typeof AppSalonIndexRoute
@@ -158,12 +200,18 @@ export interface FileRoutesByTo {
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
   '/orders/new': typeof AppOrdersNewRoute
+  '/pos/counter': typeof AppPosCounterRoute
   '/reservations/new': typeof AppReservationsNewRoute
+  '/settings/delivery': typeof AppSettingsDeliveryRoute
+  '/settings/fiscal': typeof AppSettingsFiscalRoute
   '/settings/map': typeof AppSettingsMapRoute
+  '/settings/printing': typeof AppSettingsPrintingRoute
   '/settings/reservations': typeof AppSettingsReservationsRoute
   '/settings/restaurant': typeof AppSettingsRestaurantRoute
   '/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
   '/cash': typeof AppCashIndexRoute
+  '/expenses': typeof AppExpensesIndexRoute
+  '/invoices': typeof AppInvoicesIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/reservations': typeof AppReservationsIndexRoute
   '/salon': typeof AppSalonIndexRoute
@@ -181,12 +229,18 @@ export interface FileRoutesById {
   '/_auth/register': typeof AuthRegisterRoute
   '/_app/': typeof AppIndexRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
+  '/_app/pos/counter': typeof AppPosCounterRoute
   '/_app/reservations/new': typeof AppReservationsNewRoute
+  '/_app/settings/delivery': typeof AppSettingsDeliveryRoute
+  '/_app/settings/fiscal': typeof AppSettingsFiscalRoute
   '/_app/settings/map': typeof AppSettingsMapRoute
+  '/_app/settings/printing': typeof AppSettingsPrintingRoute
   '/_app/settings/reservations': typeof AppSettingsReservationsRoute
   '/_app/settings/restaurant': typeof AppSettingsRestaurantRoute
   '/_app/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
   '/_app/cash/': typeof AppCashIndexRoute
+  '/_app/expenses/': typeof AppExpensesIndexRoute
+  '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/reservations/': typeof AppReservationsIndexRoute
   '/_app/salon/': typeof AppSalonIndexRoute
@@ -203,12 +257,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/orders/new'
+    | '/pos/counter'
     | '/reservations/new'
+    | '/settings/delivery'
+    | '/settings/fiscal'
     | '/settings/map'
+    | '/settings/printing'
     | '/settings/reservations'
     | '/settings/restaurant'
     | '/suppliers/purchase-orders'
     | '/cash/'
+    | '/expenses/'
+    | '/invoices/'
     | '/orders/'
     | '/reservations/'
     | '/salon/'
@@ -223,12 +283,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/orders/new'
+    | '/pos/counter'
     | '/reservations/new'
+    | '/settings/delivery'
+    | '/settings/fiscal'
     | '/settings/map'
+    | '/settings/printing'
     | '/settings/reservations'
     | '/settings/restaurant'
     | '/suppliers/purchase-orders'
     | '/cash'
+    | '/expenses'
+    | '/invoices'
     | '/orders'
     | '/reservations'
     | '/salon'
@@ -245,12 +311,18 @@ export interface FileRouteTypes {
     | '/_auth/register'
     | '/_app/'
     | '/_app/orders/new'
+    | '/_app/pos/counter'
     | '/_app/reservations/new'
+    | '/_app/settings/delivery'
+    | '/_app/settings/fiscal'
     | '/_app/settings/map'
+    | '/_app/settings/printing'
     | '/_app/settings/reservations'
     | '/_app/settings/restaurant'
     | '/_app/suppliers/purchase-orders'
     | '/_app/cash/'
+    | '/_app/expenses/'
+    | '/_app/invoices/'
     | '/_app/orders/'
     | '/_app/reservations/'
     | '/_app/salon/'
@@ -322,6 +394,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCashIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/expenses/': {
+      id: '/_app/expenses/'
+      path: '/expenses'
+      fullPath: '/expenses/'
+      preLoaderRoute: typeof AppExpensesIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/invoices/': {
+      id: '/_app/invoices/'
+      path: '/invoices'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof AppInvoicesIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/orders/': {
       id: '/_app/orders/'
       path: '/orders'
@@ -334,6 +420,13 @@ declare module '@tanstack/react-router' {
       path: '/orders/new'
       fullPath: '/orders/new'
       preLoaderRoute: typeof AppOrdersNewRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/pos/counter': {
+      id: '/_app/pos/counter'
+      path: '/pos/counter'
+      fullPath: '/pos/counter'
+      preLoaderRoute: typeof AppPosCounterRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/reservations/': {
@@ -357,11 +450,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalonIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/settings/delivery': {
+      id: '/_app/settings/delivery'
+      path: '/delivery'
+      fullPath: '/settings/delivery'
+      preLoaderRoute: typeof AppSettingsDeliveryRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
+    '/_app/settings/fiscal': {
+      id: '/_app/settings/fiscal'
+      path: '/fiscal'
+      fullPath: '/settings/fiscal'
+      preLoaderRoute: typeof AppSettingsFiscalRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
     '/_app/settings/map': {
       id: '/_app/settings/map'
       path: '/map'
       fullPath: '/settings/map'
       preLoaderRoute: typeof AppSettingsMapRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
+    '/_app/settings/printing': {
+      id: '/_app/settings/printing'
+      path: '/printing'
+      fullPath: '/settings/printing'
+      preLoaderRoute: typeof AppSettingsPrintingRouteImport
       parentRoute: typeof AppSettingsRouteRoute
     }
     '/_app/settings/reservations': {
@@ -410,13 +524,19 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppSettingsRouteRouteChildren {
+  AppSettingsDeliveryRoute: typeof AppSettingsDeliveryRoute
+  AppSettingsFiscalRoute: typeof AppSettingsFiscalRoute
   AppSettingsMapRoute: typeof AppSettingsMapRoute
+  AppSettingsPrintingRoute: typeof AppSettingsPrintingRoute
   AppSettingsReservationsRoute: typeof AppSettingsReservationsRoute
   AppSettingsRestaurantRoute: typeof AppSettingsRestaurantRoute
 }
 
 const AppSettingsRouteRouteChildren: AppSettingsRouteRouteChildren = {
+  AppSettingsDeliveryRoute: AppSettingsDeliveryRoute,
+  AppSettingsFiscalRoute: AppSettingsFiscalRoute,
   AppSettingsMapRoute: AppSettingsMapRoute,
+  AppSettingsPrintingRoute: AppSettingsPrintingRoute,
   AppSettingsReservationsRoute: AppSettingsReservationsRoute,
   AppSettingsRestaurantRoute: AppSettingsRestaurantRoute,
 }
@@ -428,9 +548,12 @@ interface AppRouteRouteChildren {
   AppSettingsRouteRoute: typeof AppSettingsRouteRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
+  AppPosCounterRoute: typeof AppPosCounterRoute
   AppReservationsNewRoute: typeof AppReservationsNewRoute
   AppSuppliersPurchaseOrdersRoute: typeof AppSuppliersPurchaseOrdersRoute
   AppCashIndexRoute: typeof AppCashIndexRoute
+  AppExpensesIndexRoute: typeof AppExpensesIndexRoute
+  AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppReservationsIndexRoute: typeof AppReservationsIndexRoute
   AppSalonIndexRoute: typeof AppSalonIndexRoute
@@ -443,9 +566,12 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppSettingsRouteRoute: AppSettingsRouteRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
+  AppPosCounterRoute: AppPosCounterRoute,
   AppReservationsNewRoute: AppReservationsNewRoute,
   AppSuppliersPurchaseOrdersRoute: AppSuppliersPurchaseOrdersRoute,
   AppCashIndexRoute: AppCashIndexRoute,
+  AppExpensesIndexRoute: AppExpensesIndexRoute,
+  AppInvoicesIndexRoute: AppInvoicesIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppReservationsIndexRoute: AppReservationsIndexRoute,
   AppSalonIndexRoute: AppSalonIndexRoute,

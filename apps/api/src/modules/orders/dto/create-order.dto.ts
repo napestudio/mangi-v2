@@ -55,5 +55,6 @@ export class CreateOrderDto {
   @IsOptional() @IsString() deliveryCity?: string;
   @IsOptional() @IsString() deliveryPhone?: string;
   @IsOptional() @IsString() deliveryName?: string;
+  @IsOptional() @IsString() deliveryZoneId?: string;
   @IsOptional() @IsDateString() scheduledFor?: string;
 }

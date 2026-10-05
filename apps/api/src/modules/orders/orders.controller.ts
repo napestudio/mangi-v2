@@ -4,7 +4,9 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { requireRestaurantId } from "../../common/require-restaurant-id";
 import type { RequestUser } from "../../common/types/request-user.type";
+import { CheckoutOrderDto } from "./dto/checkout-order.dto";
 import { CreateOrderDto } from "./dto/create-order.dto";
+import { SendToKitchenDto } from "./dto/send-to-kitchen.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrdersService } from "./orders.service";
 
@@ -33,5 +35,15 @@ export class OrdersController {
   @Patch(":id/status")
   updateStatus(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: UpdateOrderStatusDto) {
     return this.ordersService.updateStatus(requireRestaurantId(user), id, dto);
+  }
+
+  @Patch(":id/checkout")
+  checkout(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: CheckoutOrderDto) {
+    return this.ordersService.checkout(requireRestaurantId(user), user.id, id, dto);
+  }
+
+  @Patch(":id/send-to-kitchen")
+  sendToKitchen(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: SendToKitchenDto) {
+    return this.ordersService.sendItemsToKitchen(requireRestaurantId(user), id, dto);
   }
 }

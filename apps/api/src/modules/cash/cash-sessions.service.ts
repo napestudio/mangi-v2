@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { AuditAction } from "@mangiar/shared";
 import type {
   CashMovementType as PrismaCashMovementType,
   CashRegisterSession as PrismaCashRegisterSession,
 } from "../../../generated/prisma/client";
+import { AuditLogService } from "../../common/audit/audit-log.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { CloseSessionDto } from "./dto/close-session.dto";
 import type { OpenSessionDto } from "./dto/open-session.dto";
@@ -21,7 +23,10 @@ function signedAmount(type: PrismaCashMovementType, amount: number): number {
 
 @Injectable()
 export class CashSessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLog: AuditLogService,
+  ) {}
 
   async findAllForRegister(restaurantId: string, cashRegisterId: string): Promise<PrismaCashRegisterSession[]> {
     await this.requireRegister(restaurantId, cashRegisterId);
@@ -102,7 +107,7 @@ export class CashSessionsService {
       throw new BadRequestException("Cash session is not closed");
     }
 
-    return this.prisma.cashRegisterSession.update({
+    const reopened = await this.prisma.cashRegisterSession.update({
       where: { id },
       data: {
         status: "OPEN",
@@ -115,6 +120,23 @@ export class CashSessionsService {
       },
       include: SESSION_INCLUDE,
     });
+
+    await this.auditLog.record({
+      restaurantId,
+      actorId: currentUserId,
+      action: AuditAction.CASH_SESSION_REOPENED,
+      entityType: "CashRegisterSession",
+      entityId: id,
+      metadata: {
+        cashRegisterId: session.cashRegisterId,
+        previousClosingAmount: session.closingAmount?.toString() ?? null,
+        previousExpectedAmount: session.expectedAmount?.toString() ?? null,
+        previousVariance: session.variance?.toString() ?? null,
+        previousClosedAt: session.closedAt,
+      },
+    });
+
+    return reopened;
   }
 
   private async requireRegister(restaurantId: string, cashRegisterId: string): Promise<void> {
