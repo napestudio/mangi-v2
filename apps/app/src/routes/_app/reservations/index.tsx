@@ -72,12 +72,13 @@ function ReservationsPage() {
   const queryClient = useQueryClient();
   const panel = useSidePanel<ReservationItem>();
   const [date, setDate] = useState(todayIso());
+  const [view, setView] = useState<"day" | "upcoming">("day");
 
   const { data: reservations, isLoading } = useQuery({
-    queryKey: ["reservations", date],
+    queryKey: ["reservations", view, date],
     queryFn: async () => {
       const { data } = await apiClient.get<ApiEnvelope<ReservationItem[]>>("/reservations", {
-        params: { from: date, to: date },
+        params: view === "day" ? { from: date, to: date } : { from: todayIso() },
       });
       return data.data;
     },
@@ -88,12 +89,22 @@ function ReservationsPage() {
       await apiClient.patch(`/reservations/${id}/status`, { status });
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["reservations", date] });
+      void queryClient.invalidateQueries({ queryKey: ["reservations", view, date] });
       panel.close();
     },
   });
 
   const columns: ColumnDef<ReservationItem>[] = [
+    ...(view === "upcoming"
+      ? [
+          {
+            id: "date",
+            header: "Fecha",
+            cell: ({ row }: { row: { original: ReservationItem } }) =>
+              new Date(row.original.date).toLocaleDateString("es-AR"),
+          } satisfies ColumnDef<ReservationItem>,
+        ]
+      : []),
     { id: "time", header: "Hora", cell: ({ row }) => new Date(row.original.date).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) },
     { accessorKey: "guestName", header: "Cliente" },
     { accessorKey: "partySize", header: "Personas" },
@@ -125,14 +136,40 @@ function ReservationsPage() {
         </Link>
       </div>
 
-      <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="w-48" />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-md border border-neutral-300 bg-white p-0.5">
+          <button
+            type="button"
+            onClick={() => setView("day")}
+            className={cn(
+              "rounded px-3 py-1 text-sm font-medium",
+              view === "day" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100",
+            )}
+          >
+            Por día
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("upcoming")}
+            className={cn(
+              "rounded px-3 py-1 text-sm font-medium",
+              view === "upcoming" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100",
+            )}
+          >
+            Próximas
+          </button>
+        </div>
+        {view === "day" && (
+          <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="w-48" />
+        )}
+      </div>
 
       <DataTable
         columns={columns}
         data={reservations ?? []}
         isLoading={isLoading}
         onRowClick={panel.open}
-        emptyMessage="No hay reservas para ese día."
+        emptyMessage={view === "day" ? "No hay reservas para ese día." : "No hay reservas próximas."}
         className="flex-1"
       />
 

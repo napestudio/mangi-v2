@@ -1,0 +1,18 @@
+{
+  "name": "e2e",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:ui": "playwright test --project=chromium --ui",
+    "test:e2e:electron": "pnpm --filter desktop build && playwright test --project=electron",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@mangiar/tsconfig": "workspace:*",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "playwright": "^1.63.0",
+    "typescript": "^5.9.3"
+  }
+}

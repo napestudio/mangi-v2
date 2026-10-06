@@ -9,9 +9,12 @@ interface SidePanelProps {
   title?: ReactNode;
   children?: ReactNode;
   className?: string;
+  /** Overrides the default scrolling content wrapper — pass a non-scrolling flex column when the
+   * content itself manages its own scroll region (ej. para fijar un total/botón al fondo). */
+  bodyClassName?: string;
 }
 
-export function SidePanel({ open, onClose, title, children, className }: SidePanelProps) {
+export function SidePanel({ open, onClose, title, children, className, bodyClassName }: SidePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,7 +58,7 @@ export function SidePanel({ open, onClose, title, children, className }: SidePan
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        <div className={bodyClassName ?? "flex-1 overflow-y-auto px-6 py-4"}>{children}</div>
       </div>
     </div>,
     document.body,

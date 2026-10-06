@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface SupplierListItem {
@@ -76,7 +77,7 @@ const columns: ColumnDef<SupplierListItem>[] = [
     header: "Saldo",
     cell: ({ row }) => (
       <span className={cn("font-medium", Number(row.original.balance) > 0 ? "text-red-600" : "text-neutral-900")}>
-        ${row.original.balance}
+        {formatPrice(row.original.balance)}
       </span>
     ),
   },
@@ -257,7 +258,7 @@ function SuppliersPage() {
               <div>
                 <dt className="text-xs font-medium uppercase text-neutral-500">Saldo</dt>
                 <dd className={cn("font-semibold", Number(detail.balance) > 0 ? "text-red-600" : "text-neutral-900")}>
-                  ${detail.balance}
+                  {formatPrice(detail.balance)}
                 </dd>
               </div>
             </dl>
@@ -328,7 +329,8 @@ function SuppliersPage() {
                       <p className="text-xs text-neutral-500">{new Date(entry.createdAt).toLocaleDateString("es-AR")}</p>
                     </div>
                     <span className={cn("font-medium", entry.type === "PAYMENT" ? "text-emerald-600" : "text-neutral-900")}>
-                      {entry.type === "PAYMENT" ? "-" : "+"}${entry.amount}
+                      {entry.type === "PAYMENT" ? "-" : "+"}
+                      {formatPrice(entry.amount)}
                     </span>
                   </div>
                 ))}

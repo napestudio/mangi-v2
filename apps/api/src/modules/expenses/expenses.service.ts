@@ -42,7 +42,12 @@ export class ExpensesService {
     return expense;
   }
 
-  async create(restaurantId: string, currentUserId: string, activeModules: Module[], dto: CreateExpenseDto): Promise<PrismaExpense> {
+  async create(
+    restaurantId: string,
+    currentUserId: string,
+    activeModules: Module[],
+    dto: CreateExpenseDto,
+  ): Promise<PrismaExpense> {
     const paidById = await this.resolveStaffId(restaurantId, dto.paidById, currentUserId);
 
     if (!dto.paidFromSessionId) {
@@ -181,11 +186,17 @@ export class ExpensesService {
       select: { session: { select: { status: true } } },
     });
     if (movement?.session.status === "CLOSED") {
-      throw new BadRequestException("Cannot modify an expense linked to a closed cash session. Reopen the session first.");
+      throw new BadRequestException(
+        "Cannot modify an expense linked to a closed cash session. Reopen the session first.",
+      );
     }
   }
 
-  private async resolveStaffId(restaurantId: string, staffId: string | undefined, currentUserId: string): Promise<string> {
+  private async resolveStaffId(
+    restaurantId: string,
+    staffId: string | undefined,
+    currentUserId: string,
+  ): Promise<string> {
     if (!staffId) return currentUserId;
     const staff = await this.prisma.user.findFirst({ where: { id: staffId, restaurantId } });
     if (!staff) {

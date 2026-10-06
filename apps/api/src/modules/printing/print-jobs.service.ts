@@ -21,7 +21,9 @@ export class PrintJobsService {
       where: { id: { in: itemIds }, orderId, order: { restaurantId } },
       include: {
         product: {
-          include: { category: { include: { stationCategory: { include: { station: { include: { printers: true } } } } } } },
+          include: {
+            category: { include: { stationCategory: { include: { station: { include: { printers: true } } } } } },
+          },
         },
       },
     });
@@ -103,7 +105,11 @@ export class PrintJobsService {
     });
   }
 
-  private async createAndEmit(restaurantId: string, printerId: string, payload: Record<string, unknown>): Promise<void> {
+  private async createAndEmit(
+    restaurantId: string,
+    printerId: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
     const printJob = await this.prisma.printJob.create({
       data: { printerId, payload: payload as unknown as Prisma.InputJsonValue },
       include: { printer: true },

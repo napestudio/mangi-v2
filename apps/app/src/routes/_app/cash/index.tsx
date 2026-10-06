@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CashMovementType, Module, PaymentMethodExtended, UserRole } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -13,6 +13,7 @@ import { ModuleGuard } from "@/components/guards/ModuleGuard";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface SectorRef {
@@ -123,7 +124,7 @@ const columns: ColumnDef<CashRegisterItem>[] = [
   {
     id: "openingAmount",
     header: "Apertura",
-    cell: ({ row }) => (row.original.sessions[0] ? `$${row.original.sessions[0]!.openingAmount}` : "—"),
+    cell: ({ row }) => (row.original.sessions[0] ? formatPrice(row.original.sessions[0]!.openingAmount) : "—"),
   },
 ];
 
@@ -137,15 +138,22 @@ function CashPage() {
   const [newRegisterName, setNewRegisterName] = useState("");
   const [newRegisterSectorIds, setNewRegisterSectorIds] = useState<string[]>([]);
 
+  const [editName, setEditName] = useState("");
+  const [editSectorIds, setEditSectorIds] = useState<string[]>([]);
+  const [prevSelected, setPrevSelected] = useState(panel.selected);
+
   const [openingAmount, setOpeningAmount] = useState("0");
   const [openedById, setOpenedById] = useState<string | undefined>(undefined);
 
   const [closingAmount, setClosingAmount] = useState("0");
   const [closedById, setClosedById] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
+  if (panel.selected !== prevSelected) {
+    setPrevSelected(panel.selected);
     setActiveSessionId(panel.selected?.sessions[0]?.id ?? null);
-  }, [panel.selected]);
+    setEditName(panel.selected?.name ?? "");
+    setEditSectorIds(panel.selected?.sectors.map((s) => s.sector.id) ?? []);
+  }
 
   const { data: registers, isLoading } = useQuery({
     queryKey: ["cash-registers"],
@@ -181,6 +189,15 @@ function CashPage() {
       setCreatingRegister(false);
       setNewRegisterName("");
       setNewRegisterSectorIds([]);
+    },
+  });
+
+  const updateRegister = useMutation({
+    mutationFn: async () => {
+      await apiClient.patch(`/cash-registers/${panel.selected!.id}`, { name: editName, sectorIds: editSectorIds });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
     },
   });
 
@@ -287,6 +304,44 @@ function CashPage() {
       />
 
       <SidePanel open={panel.isOpen} onClose={panel.close} title={panel.selected?.name}>
+        {panel.selected && (
+          <div className="mb-4 flex flex-col gap-3 border-b border-neutral-200 pb-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="editRegisterName">Nombre</Label>
+              <Input id="editRegisterName" value={editName} onChange={(event) => setEditName(event.target.value)} />
+            </div>
+            {sectors && sectors.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Sectores</Label>
+                <div className="flex flex-wrap gap-2">
+                  {sectors.map((sector) => (
+                    <label key={sector.id} className="flex items-center gap-1.5 text-sm text-neutral-700">
+                      <input
+                        type="checkbox"
+                        checked={editSectorIds.includes(sector.id)}
+                        onChange={(event) =>
+                          setEditSectorIds((prev) =>
+                            event.target.checked ? [...prev, sector.id] : prev.filter((id) => id !== sector.id),
+                          )
+                        }
+                      />
+                      {sector.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Button
+              size="sm"
+              className="self-start"
+              disabled={!editName.trim() || updateRegister.isPending}
+              onClick={() => updateRegister.mutate()}
+            >
+              Guardar
+            </Button>
+          </div>
+        )}
+
         {panel.selected && !activeSessionId && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-neutral-500">Esta caja está cerrada. Abrila para empezar a registrar movimientos.</p>
@@ -321,7 +376,7 @@ function CashPage() {
               </div>
               <div>
                 <p className="text-xs font-medium uppercase text-neutral-500">Monto de apertura</p>
-                <p className="text-neutral-900">${session.openingAmount}</p>
+                <p className="text-neutral-900">{formatPrice(session.openingAmount)}</p>
               </div>
             </div>
 
@@ -334,7 +389,7 @@ function CashPage() {
                     <span>
                       {MOVEMENT_TYPE_LABELS[movement.type]} · {PAYMENT_METHOD_LABELS[movement.method]}
                     </span>
-                    <span className="font-medium">${movement.amount}</span>
+                    <span className="font-medium">{formatPrice(movement.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -351,7 +406,7 @@ function CashPage() {
                   onChange={(event) => setClosingAmount(event.target.value)}
                 />
                 <StaffPicker value={closedById} onChange={setClosedById} />
-                <Button size="sm" variant="destructive" onClick={() => closeSession.mutate()} disabled={closeSession.isPending}>
+                <Button size="sm" onClick={() => closeSession.mutate()} disabled={closeSession.isPending}>
                   Cerrar caja
                 </Button>
               </div>
@@ -362,9 +417,9 @@ function CashPage() {
                 <p className="text-xs font-medium uppercase text-neutral-500">Resultado del arqueo</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <span className="text-neutral-500">Esperado</span>
-                  <span className="text-right font-medium">${session.expectedAmount}</span>
+                  <span className="text-right font-medium">{formatPrice(session.expectedAmount!)}</span>
                   <span className="text-neutral-500">Contado</span>
-                  <span className="text-right font-medium">${session.closingAmount}</span>
+                  <span className="text-right font-medium">{formatPrice(session.closingAmount!)}</span>
                   <span className="text-neutral-500">Diferencia</span>
                   <span
                     className={cn(
@@ -376,7 +431,7 @@ function CashPage() {
                           : "text-red-600",
                     )}
                   >
-                    ${session.variance}
+                    {formatPrice(session.variance!)}
                   </span>
                 </div>
                 {user?.role === UserRole.ADMIN && (

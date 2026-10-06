@@ -1,9 +1,18 @@
-import { createOrderSchema, Module, OrderType, type BusinessHoursStatus, type CreateOrderPayload } from "@mangiar/shared";
+import {
+  createOrderSchema,
+  Module,
+  OrderType,
+  TableStatus,
+  type BusinessHoursStatus,
+  type CreateOrderPayload,
+} from "@mangiar/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { StaffPicker } from "@/components/staff/StaffPicker";
+import { patchTableStatus } from "@/components/salon/tableCache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +20,8 @@ import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
+import { ORDER_TYPE_LABELS } from "@/lib/labels";
 
 interface ProductOption {
   id: string;
@@ -22,6 +33,18 @@ interface DeliveryZoneOption {
   name: string;
   fee: string;
   isActive: boolean;
+}
+
+interface TableOption {
+  id: string;
+  number: string;
+}
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError<{ error?: string }>(error)) {
+    return error.response?.data?.error ?? fallback;
+  }
+  return fallback;
 }
 
 export const Route = createFileRoute("/_app/orders/new")({
@@ -55,6 +78,7 @@ function NewOrderPage() {
     control,
     handleSubmit,
     watch,
+    setError,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(createOrderSchema),
@@ -66,6 +90,8 @@ function NewOrderPage() {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  // react(incompatible-library): react-hook-form's watch() isn't memo-safe, so React
+  // Compiler skips optimizing this component. Known react-hook-form limitation, not a bug.
   const selectedType = watch("type");
 
   const { data: deliveryZones } = useQuery({
@@ -77,18 +103,38 @@ function NewOrderPage() {
     enabled: hasModule(Module.DELIVERY) && selectedType === OrderType.DELIVERY,
   });
 
+  const { data: tables } = useQuery({
+    queryKey: ["tables", "all"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ApiEnvelope<TableOption[]>>("/tables");
+      return data.data;
+    },
+    enabled: hasModule(Module.SALON) && selectedType === OrderType.DINE_IN,
+  });
+
   const createOrder = useMutation({
     mutationFn: async (payload: CreateOrderPayload) => {
       const { data } = await apiClient.post<ApiEnvelope<{ id: string }>>("/orders", payload);
       return data.data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (variables.type === OrderType.DINE_IN && variables.tableId) {
+        patchTableStatus(queryClient, variables.tableId, TableStatus.OCCUPIED);
+      }
       void navigate({ to: "/orders" });
     },
   });
 
-  const onSubmit = handleSubmit((values) => createOrder.mutate(values));
+  const onSubmit = handleSubmit((values) => {
+    if (values.type === OrderType.DINE_IN && hasModule(Module.SALON) && !values.tableId) {
+      setError("tableId", { message: "Seleccioná una mesa" });
+      return;
+    }
+    // react-hook-form keeps a hidden field's last value after it unmounts (no `shouldUnregister`),
+    // so switching away from "Mesa" (DINE_IN) can leave a stale tableId in `values` — drop it here.
+    createOrder.mutate({ ...values, tableId: values.type === OrderType.DINE_IN ? values.tableId : undefined });
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,11 +159,30 @@ function NewOrderPage() {
               >
                 {Object.values(OrderType).map((type) => (
                   <option key={type} value={type}>
-                    {type}
+                    {ORDER_TYPE_LABELS[type]}
                   </option>
                 ))}
               </select>
             </div>
+
+            {selectedType === OrderType.DINE_IN && hasModule(Module.SALON) && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="tableId">Mesa</Label>
+                <select
+                  id="tableId"
+                  className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm"
+                  {...register("tableId")}
+                >
+                  <option value="">Seleccioná una mesa</option>
+                  {tables?.map((table) => (
+                    <option key={table.id} value={table.id}>
+                      Mesa {table.number}
+                    </option>
+                  ))}
+                </select>
+                {errors.tableId && <p className="text-xs text-red-600">{errors.tableId.message}</p>}
+              </div>
+            )}
 
             {selectedType === OrderType.DELIVERY && (
               <div className="flex flex-col gap-1.5">
@@ -140,7 +205,7 @@ function NewOrderPage() {
                     ?.filter((zone) => zone.isActive)
                     .map((zone) => (
                       <option key={zone.id} value={zone.id}>
-                        {zone.name} — ${zone.fee}
+                        {zone.name} — {formatPrice(zone.fee)}
                       </option>
                     ))}
                 </select>
@@ -195,7 +260,9 @@ function NewOrderPage() {
               </Button>
             </div>
 
-            {createOrder.isError && <p className="text-sm text-red-600">No se pudo crear el pedido</p>}
+            {createOrder.isError && (
+              <p className="text-sm text-red-600">{extractErrorMessage(createOrder.error, "No se pudo crear el pedido")}</p>
+            )}
             <Button type="submit" disabled={createOrder.isPending}>
               {createOrder.isPending ? "Creando..." : "Crear pedido"}
             </Button>

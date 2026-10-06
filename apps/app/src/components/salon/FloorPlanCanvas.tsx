@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { TableShape, TableStatus } from "@mangiar/shared";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +17,7 @@ export interface FloorPlanTable {
   width: number;
   height: number;
   rotation: number;
+  activeOrderCount: number;
 }
 
 interface FloorPlanCanvasProps {
@@ -22,15 +27,20 @@ interface FloorPlanCanvasProps {
   onTableClick: (table: FloorPlanTable) => void;
   onTableMoved?: (tableId: string, posX: number, posY: number) => void;
   editable?: boolean;
+  /** Si es false, las mesas se ven neutras (sin color por estado ni cantidad de pedidos). Default true. */
+  showStatus?: boolean;
 }
 
-const STATUS_STYLES: Record<TableStatus, string> = {
-  [TableStatus.EMPTY]: "border-emerald-400 bg-emerald-100 text-emerald-900",
-  [TableStatus.OCCUPIED]: "border-red-400 bg-red-100 text-red-900",
+export const STATUS_STYLES: Record<TableStatus, string> = {
+  [TableStatus.EMPTY]: "border-emerald-400 bg-green-300 text-emerald-900",
+  [TableStatus.OCCUPIED]: "border-red-400 bg-red-300 text-red-900",
   [TableStatus.RESERVED]: "border-amber-400 bg-amber-100 text-amber-900",
   [TableStatus.CLEANING]: "border-sky-400 bg-sky-100 text-sky-900",
   [TableStatus.PAYING]: "border-violet-400 bg-violet-100 text-violet-900",
 };
+
+const NEUTRAL_TABLE_STYLE =
+  "border-neutral-300 bg-neutral-100 text-neutral-600";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -50,15 +60,27 @@ export function FloorPlanCanvas({
   onTableClick,
   onTableMoved,
   editable = false,
+  showStatus = true,
 }: FloorPlanCanvasProps) {
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [positions, setPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+  const [prevTables, setPrevTables] = useState(tables);
   const dragState = useRef<DragState | null>(null);
 
-  useEffect(() => {
-    setPositions(Object.fromEntries(tables.map((table) => [table.id, { x: table.posX, y: table.posY }])));
-  }, [tables]);
+  if (tables !== prevTables) {
+    setPrevTables(tables);
+    setPositions(
+      Object.fromEntries(
+        tables.map((table) => [table.id, { x: table.posX, y: table.posY }]),
+      ),
+    );
+  }
 
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>, table: FloorPlanTable) => {
+  const handlePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    table: FloorPlanTable,
+  ) => {
     if (!editable) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     dragState.current = {
@@ -71,7 +93,10 @@ export function FloorPlanCanvas({
     };
   };
 
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>, table: FloorPlanTable) => {
+  const handlePointerMove = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    table: FloorPlanTable,
+  ) => {
     if (!editable) return;
     const state = dragState.current;
     if (!state || state.id !== table.id) return;
@@ -82,12 +107,23 @@ export function FloorPlanCanvas({
       state.moved = true;
     }
 
-    const nextX = clamp(state.origX + dx, 0, Math.max(canvasWidth - table.width, 0));
-    const nextY = clamp(state.origY + dy, 0, Math.max(canvasHeight - table.height, 0));
+    const nextX = clamp(
+      state.origX + dx,
+      0,
+      Math.max(canvasWidth - table.width, 0),
+    );
+    const nextY = clamp(
+      state.origY + dy,
+      0,
+      Math.max(canvasHeight - table.height, 0),
+    );
     setPositions((prev) => ({ ...prev, [table.id]: { x: nextX, y: nextY } }));
   };
 
-  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>, table: FloorPlanTable) => {
+  const handlePointerUp = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    table: FloorPlanTable,
+  ) => {
     if (!editable) {
       onTableClick(table);
       return;
@@ -121,9 +157,11 @@ export function FloorPlanCanvas({
             onPointerUp={(event) => handlePointerUp(event, table)}
             className={cn(
               "absolute flex touch-none select-none flex-col items-center justify-center border-2 text-xs font-semibold shadow-sm",
-              editable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+              editable
+                ? "cursor-grab active:cursor-grabbing"
+                : "cursor-pointer",
               table.shape === TableShape.CIRCLE ? "rounded-full" : "rounded-md",
-              STATUS_STYLES[table.status],
+              showStatus ? STATUS_STYLES[table.status] : NEUTRAL_TABLE_STYLE,
             )}
             style={{
               left: pos.x,
@@ -134,7 +172,18 @@ export function FloorPlanCanvas({
             }}
           >
             <span>{table.number}</span>
-            <span className="text-[10px] font-normal opacity-70">{table.capacity}p</span>
+            {showStatus && table.activeOrderCount > 1 && (
+              <span className="flex w-full flex-wrap items-center justify-center gap-0.5 px-1">
+                {Array.from({ length: table.activeOrderCount }).map(
+                  (_, index) => (
+                    <span
+                      key={index}
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"
+                    />
+                  ),
+                )}
+              </span>
+            )}
           </div>
         );
       })}

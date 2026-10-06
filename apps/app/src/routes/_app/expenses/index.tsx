@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface StaffRef {
@@ -118,7 +119,7 @@ const columns: ColumnDef<ExpenseListItem>[] = [
       </span>
     ),
   },
-  { id: "amount", header: "Monto", cell: ({ row }) => `$${row.original.amount}` },
+  { id: "amount", header: "Monto", cell: ({ row }) => formatPrice(row.original.amount) },
 ];
 
 function ExpensesPage() {
@@ -309,7 +310,7 @@ function ExpensesPage() {
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase text-neutral-500">Monto</dt>
-                <dd className="font-semibold text-neutral-900">${panel.selected.amount}</dd>
+                <dd className="font-semibold text-neutral-900">{formatPrice(panel.selected.amount)}</dd>
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase text-neutral-500">Método</dt>

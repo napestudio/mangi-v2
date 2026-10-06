@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Module, UnitType, VolumeUnit, WeightUnit } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ModuleGuard } from "@/components/guards/ModuleGuard";
 import { StockSection } from "@/components/inventory/StockSection";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 
 interface IngredientItem {
   id: string;
@@ -83,7 +84,7 @@ const columns: ColumnDef<IngredientItem>[] = [
   { accessorKey: "name", header: "Nombre" },
   { id: "stock", header: "Stock", cell: ({ row }) => `${row.original.stock} ${unitAbbr(row.original)}` },
   { id: "minStock", header: "Stock mínimo", cell: ({ row }) => row.original.minStock ?? "—" },
-  { id: "cost", header: "Costo/u.", cell: ({ row }) => (row.original.costPerUnit ? `$${row.original.costPerUnit}` : "—") },
+  { id: "cost", header: "Costo/u.", cell: ({ row }) => (row.original.costPerUnit ? formatPrice(row.original.costPerUnit) : "—") },
 ];
 
 function IngredientsPage() {
@@ -92,6 +93,7 @@ function IngredientsPage() {
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<IngredientFormState>(emptyForm());
+  const [prevSelected, setPrevSelected] = useState(panel.selected);
 
   const { data: ingredients, isLoading } = useQuery({
     queryKey: ["ingredients"],
@@ -101,17 +103,19 @@ function IngredientsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!panel.selected) return;
-    setForm({
-      name: panel.selected.name,
-      unitType: panel.selected.unitType,
-      weightUnit: panel.selected.weightUnit ?? "",
-      volumeUnit: panel.selected.volumeUnit ?? "",
-      costPerUnit: panel.selected.costPerUnit ?? "",
-      minStock: panel.selected.minStock ?? "",
-    });
-  }, [panel.selected]);
+  if (panel.selected !== prevSelected) {
+    setPrevSelected(panel.selected);
+    if (panel.selected) {
+      setForm({
+        name: panel.selected.name,
+        unitType: panel.selected.unitType,
+        weightUnit: panel.selected.weightUnit ?? "",
+        volumeUnit: panel.selected.volumeUnit ?? "",
+        costPerUnit: panel.selected.costPerUnit ?? "",
+        minStock: panel.selected.minStock ?? "",
+      });
+    }
+  }
 
   function toPayload(state: IngredientFormState) {
     return {
@@ -217,7 +221,7 @@ function IngredientsPage() {
               disabled={deleteIngredient.isPending}
               className="w-fit"
             >
-              <Trash2 className="h-4 w-4" /> Eliminar ingrediente
+              Eliminar ingrediente
             </Button>
           </div>
         )}

@@ -1,16 +1,25 @@
-import { useEffect, useState } from "react";
-import { Module, TableShape } from "@mangiar/shared";
+import { useState } from "react";
+import { isAxiosError } from "axios";
+import { Module, TableShape, TableStatus } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { ModuleGuard } from "@/components/guards/ModuleGuard";
-import { FloorPlanCanvas, type FloorPlanTable } from "@/components/salon/FloorPlanCanvas";
+import { FloorPlanCanvas, STATUS_STYLES, type FloorPlanTable } from "@/components/salon/FloorPlanCanvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
+import { useToast } from "@/components/ui/toast";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError<{ error?: string }>(error)) {
+    return error.response?.data?.error ?? fallback;
+  }
+  return fallback;
+}
 
 interface SectorItem {
   id: string;
@@ -27,6 +36,14 @@ const SHAPE_LABELS: Record<TableShape, string> = {
   [TableShape.WIDE]: "Ancha",
 };
 
+const TABLE_STATUS_LABELS: Record<TableStatus, string> = {
+  [TableStatus.EMPTY]: "Libre",
+  [TableStatus.OCCUPIED]: "Ocupada",
+  [TableStatus.RESERVED]: "Reservada",
+  [TableStatus.CLEANING]: "Limpieza",
+  [TableStatus.PAYING]: "Pagando",
+};
+
 export const Route = createFileRoute("/_app/settings/map")({
   component: () => (
     <ModuleGuard module={Module.SALON}>
@@ -37,6 +54,7 @@ export const Route = createFileRoute("/_app/settings/map")({
 
 function MapSettingsPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const tablePanel = useSidePanel<FloorPlanTable>();
 
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
@@ -44,8 +62,10 @@ function MapSettingsPage() {
   const [sectorName, setSectorName] = useState("");
   const [sectorColor, setSectorColor] = useState("#3b82f6");
   const [confirmingDeleteSector, setConfirmingDeleteSector] = useState(false);
+  const [confirmingDeleteTable, setConfirmingDeleteTable] = useState(false);
 
   const [tableForm, setTableForm] = useState({ number: "", capacity: 2, shape: TableShape.SQUARE as TableShape });
+  const [prevSelectedTable, setPrevSelectedTable] = useState(tablePanel.selected);
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -55,11 +75,9 @@ function MapSettingsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!selectedSectorId && sectors && sectors.length > 0) {
-      setSelectedSectorId(sectors[0]!.id);
-    }
-  }, [sectors, selectedSectorId]);
+  if (!selectedSectorId && sectors && sectors.length > 0) {
+    setSelectedSectorId(sectors[0]!.id);
+  }
 
   const { data: tables } = useQuery({
     queryKey: ["tables", selectedSectorId],
@@ -72,15 +90,26 @@ function MapSettingsPage() {
     enabled: !!selectedSectorId,
   });
 
-  useEffect(() => {
+  // Todas las mesas del restaurante (todos los sectores), solo para calcular el próximo número libre.
+  const { data: allTables } = useQuery({
+    queryKey: ["tables", "all"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ApiEnvelope<FloorPlanTable[]>>("/tables");
+      return data.data;
+    },
+  });
+
+  if (tablePanel.selected !== prevSelectedTable) {
+    setPrevSelectedTable(tablePanel.selected);
     if (tablePanel.selected) {
       setTableForm({
         number: tablePanel.selected.number,
         capacity: tablePanel.selected.capacity,
         shape: tablePanel.selected.shape,
       });
+      setConfirmingDeleteTable(false);
     }
-  }, [tablePanel.selected]);
+  }
 
   const createSector = useMutation({
     mutationFn: async () => {
@@ -117,10 +146,13 @@ function MapSettingsPage() {
 
   const createTable = useMutation({
     mutationFn: async () => {
-      const nextNumber = String((tables?.length ?? 0) + 1);
+      const highestNumber = (allTables ?? []).reduce((max, table) => {
+        const parsed = Number.parseInt(table.number, 10);
+        return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+      }, 0);
       const { data } = await apiClient.post<ApiEnvelope<FloorPlanTable>>("/tables", {
         sectorId: selectedSectorId,
-        number: nextNumber,
+        number: String(highestNumber + 1),
         capacity: 2,
         posX: 40,
         posY: 40,
@@ -129,6 +161,10 @@ function MapSettingsPage() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["tables", selectedSectorId] });
+      void queryClient.invalidateQueries({ queryKey: ["tables", "all"] });
+    },
+    onError: (error) => {
+      toast.show({ message: extractErrorMessage(error, "No se pudo crear la mesa"), variant: "error" });
     },
   });
 
@@ -148,7 +184,11 @@ function MapSettingsPage() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["tables", selectedSectorId] });
+      void queryClient.invalidateQueries({ queryKey: ["tables", "all"] });
       tablePanel.close();
+    },
+    onError: (error) => {
+      toast.show({ message: extractErrorMessage(error, "No se pudo guardar la mesa"), variant: "error" });
     },
   });
 
@@ -158,7 +198,13 @@ function MapSettingsPage() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["tables", selectedSectorId] });
+      void queryClient.invalidateQueries({ queryKey: ["tables", "all"] });
+      setConfirmingDeleteTable(false);
       tablePanel.close();
+    },
+    onError: (error) => {
+      setConfirmingDeleteTable(false);
+      toast.show({ message: extractErrorMessage(error, "No se pudo eliminar la mesa"), variant: "error" });
     },
   });
 
@@ -283,6 +329,7 @@ function MapSettingsPage() {
             canvasHeight={selectedSector.canvasHeight ?? 600}
             tables={tables ?? []}
             editable
+            showStatus={false}
             onTableClick={tablePanel.open}
             onTableMoved={(id, posX, posY) => moveTable.mutate({ id, posX, posY })}
           />
@@ -300,6 +347,18 @@ function MapSettingsPage() {
       >
         {tablePanel.selected && (
           <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase text-neutral-500">Estado</p>
+              <span
+                className={cn(
+                  "mt-1 inline-block rounded-full border px-2 py-0.5 text-xs font-medium",
+                  STATUS_STYLES[tablePanel.selected.status],
+                )}
+              >
+                {TABLE_STATUS_LABELS[tablePanel.selected.status]}
+              </span>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="tableNumber">Número</Label>
               <Input
@@ -334,18 +393,30 @@ function MapSettingsPage() {
               </select>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button size="sm" onClick={() => updateTable.mutate()} disabled={updateTable.isPending}>
                 Guardar
               </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => deleteTable.mutate(tablePanel.selected!.id)}
-                disabled={deleteTable.isPending}
-              >
-                <Trash2 className="h-4 w-4" /> Eliminar
-              </Button>
+              {confirmingDeleteTable ? (
+                <div className="flex items-center gap-1 text-sm">
+                  <span className="text-neutral-600">¿Eliminar mesa?</span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteTable.mutate(tablePanel.selected!.id)}
+                    disabled={deleteTable.isPending}
+                  >
+                    Sí
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmingDeleteTable(false)}>
+                    No
+                  </Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="destructive" onClick={() => setConfirmingDeleteTable(true)}>
+                  Eliminar
+                </Button>
+              )}
             </div>
           </div>
         )}

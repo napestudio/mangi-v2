@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Module } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
@@ -78,6 +78,7 @@ function ReservationSettingsPage() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<TimeSlotFormState>(emptyForm());
   const [tableAssignments, setTableAssignments] = useState<Record<string, boolean>>({});
+  const [prevSelected, setPrevSelected] = useState(panel.selected);
 
   const { data: timeSlots, isLoading } = useQuery({
     queryKey: ["time-slots"],
@@ -96,20 +97,22 @@ function ReservationSettingsPage() {
     enabled: hasModule(Module.SALON),
   });
 
-  useEffect(() => {
-    if (!panel.selected) return;
-    setForm({
-      name: panel.selected.name ?? "",
-      startTime: panel.selected.startTime,
-      endTime: panel.selected.endTime,
-      daysOfWeek: panel.selected.daysOfWeek,
-      capacity: panel.selected.capacity,
-      turnDurationMinutes: panel.selected.turnDurationMinutes,
-      bufferMinutes: panel.selected.bufferMinutes,
-      slotIntervalMinutes: panel.selected.slotIntervalMinutes,
-    });
-    setTableAssignments(Object.fromEntries(panel.selected.timeSlotTables.map((t) => [t.tableId, t.exclusive])));
-  }, [panel.selected]);
+  if (panel.selected !== prevSelected) {
+    setPrevSelected(panel.selected);
+    if (panel.selected) {
+      setForm({
+        name: panel.selected.name ?? "",
+        startTime: panel.selected.startTime,
+        endTime: panel.selected.endTime,
+        daysOfWeek: panel.selected.daysOfWeek,
+        capacity: panel.selected.capacity,
+        turnDurationMinutes: panel.selected.turnDurationMinutes,
+        bufferMinutes: panel.selected.bufferMinutes,
+        slotIntervalMinutes: panel.selected.slotIntervalMinutes,
+      });
+      setTableAssignments(Object.fromEntries(panel.selected.timeSlotTables.map((t) => [t.tableId, t.exclusive])));
+    }
+  }
 
   const createTimeSlot = useMutation({
     mutationFn: async () => {
@@ -269,7 +272,7 @@ function ReservationSettingsPage() {
               disabled={deleteTimeSlot.isPending}
               className="w-fit"
             >
-              <Trash2 className="h-4 w-4" /> Eliminar turno
+              Eliminar turno
             </Button>
           </div>
         )}

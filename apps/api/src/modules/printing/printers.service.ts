@@ -65,7 +65,11 @@ export class PrintersService {
     await this.prisma.printer.delete({ where: { id } });
   }
 
-  async updateHeartbeat(restaurantId: string, id: string, status: "ONLINE" | "OFFLINE" | "ERROR"): Promise<PrismaPrinter> {
+  async updateHeartbeat(
+    restaurantId: string,
+    id: string,
+    status: "ONLINE" | "OFFLINE" | "ERROR",
+  ): Promise<PrismaPrinter> {
     await this.findOne(restaurantId, id);
     return this.prisma.printer.update({ where: { id }, data: { status } });
   }

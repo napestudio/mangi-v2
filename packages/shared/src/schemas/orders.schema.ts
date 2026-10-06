@@ -14,11 +14,22 @@ export const orderItemSchema = z.object({
 });
 export type OrderItemPayload = z.infer<typeof orderItemSchema>;
 
+export const addOrderItemSchema = orderItemSchema.extend({
+  unitPrice: z.number().nonnegative().optional(),
+});
+export type AddOrderItemPayload = z.infer<typeof addOrderItemSchema>;
+
+export const addOrderItemsSchema = z.object({
+  items: z.array(addOrderItemSchema).min(1),
+});
+export type AddOrderItemsPayload = z.infer<typeof addOrderItemsSchema>;
+
 const createOrderBaseSchema = z.object({
   type: z.nativeEnum(OrderType).default(OrderType.DINE_IN),
   tableId: z.string().optional(),
   clientId: z.string().optional(),
   assignedToId: z.string().optional(),
+  guestCount: z.number().int().positive().optional(),
   items: z.array(orderItemSchema).min(1),
   notes: z.string().optional(),
   discountType: z.nativeEnum(DiscountType).optional(),
@@ -58,3 +69,8 @@ export const checkoutOrderSchema = z.object({
   sessionId: z.string().optional(),
 });
 export type CheckoutOrderPayload = z.infer<typeof checkoutOrderSchema>;
+
+export const moveOrderTableSchema = z.object({
+  tableId: z.string(),
+});
+export type MoveOrderTablePayload = z.infer<typeof moveOrderTableSchema>;

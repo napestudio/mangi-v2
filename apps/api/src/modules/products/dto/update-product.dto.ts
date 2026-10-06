@@ -11,7 +11,7 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
-import { PriceType, ProductTag, UnitType, VolumeUnit, WeightUnit } from "@mangiar/shared";
+import { ProductTag, UnitType, VolumeUnit, WeightUnit } from "@mangiar/shared";
 import { ProductPriceDto } from "./create-product.dto";
 
 export class UpdateProductDto {

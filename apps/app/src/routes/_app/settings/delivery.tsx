@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface RestaurantLocation {
@@ -79,7 +80,7 @@ const columns: ColumnDef<DeliveryZoneItem>[] = [
       return `${min}km – ${max}`;
     },
   },
-  { id: "fee", header: "Costo", cell: ({ row }) => `$${row.original.fee}` },
+  { id: "fee", header: "Costo", cell: ({ row }) => formatPrice(row.original.fee) },
   { id: "priority", header: "Prioridad", cell: ({ row }) => row.original.priority },
   {
     id: "status",
@@ -134,26 +135,34 @@ function DeliverySettingsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!restaurant) return;
-    setLatitude(restaurant.latitude != null ? String(restaurant.latitude) : "");
-    setLongitude(restaurant.longitude != null ? String(restaurant.longitude) : "");
-  }, [restaurant]);
+  const [prevRestaurant, setPrevRestaurant] = useState(restaurant);
+  if (restaurant !== prevRestaurant) {
+    setPrevRestaurant(restaurant);
+    if (restaurant) {
+      setLatitude(restaurant.latitude != null ? String(restaurant.latitude) : "");
+      setLongitude(restaurant.longitude != null ? String(restaurant.longitude) : "");
+    }
+  }
 
-  useEffect(() => {
-    if (!deliveryConfig) return;
-    setConfigForm({
-      isEnabled: deliveryConfig.isEnabled,
-      minOrderAmount: deliveryConfig.minOrderAmount ?? "",
-      deliveryFee: deliveryConfig.deliveryFee,
-      estimatedMinutes: deliveryConfig.estimatedMinutes != null ? String(deliveryConfig.estimatedMinutes) : "",
-      notes: deliveryConfig.notes ?? "",
-    });
-  }, [deliveryConfig]);
+  const [prevDeliveryConfig, setPrevDeliveryConfig] = useState(deliveryConfig);
+  if (deliveryConfig !== prevDeliveryConfig) {
+    setPrevDeliveryConfig(deliveryConfig);
+    if (deliveryConfig) {
+      setConfigForm({
+        isEnabled: deliveryConfig.isEnabled,
+        minOrderAmount: deliveryConfig.minOrderAmount ?? "",
+        deliveryFee: deliveryConfig.deliveryFee,
+        estimatedMinutes: deliveryConfig.estimatedMinutes != null ? String(deliveryConfig.estimatedMinutes) : "",
+        notes: deliveryConfig.notes ?? "",
+      });
+    }
+  }
 
-  useEffect(() => {
+  const [prevSelectedZone, setPrevSelectedZone] = useState(panel.selected);
+  if (panel.selected !== prevSelectedZone) {
+    setPrevSelectedZone(panel.selected);
     setEditZoneForm(panel.selected ? zoneToForm(panel.selected) : null);
-  }, [panel.selected]);
+  }
 
   const saveLocation = useMutation({
     mutationFn: async () => {

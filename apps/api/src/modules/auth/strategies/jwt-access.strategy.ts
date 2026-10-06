@@ -27,9 +27,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, "jwt-access") 
       throw new UnauthorizedException("User not found");
     }
 
-    const activeModules = user.restaurantId
-      ? await this.subscriptionsService.getActiveModules(user.restaurantId)
-      : [];
+    const activeModules = user.restaurantId ? await this.subscriptionsService.getActiveModules(user.restaurantId) : [];
 
     return {
       id: user.id,

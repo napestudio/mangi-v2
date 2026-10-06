@@ -27,11 +27,7 @@ export class CashSessionsController {
   }
 
   @Post("cash-registers/:cashRegisterId/sessions")
-  open(
-    @CurrentUser() user: RequestUser,
-    @Param("cashRegisterId") cashRegisterId: string,
-    @Body() dto: OpenSessionDto,
-  ) {
+  open(@CurrentUser() user: RequestUser, @Param("cashRegisterId") cashRegisterId: string, @Body() dto: OpenSessionDto) {
     return this.cashSessionsService.open(requireRestaurantId(user), cashRegisterId, user.id, dto);
   }
 
