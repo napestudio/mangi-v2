@@ -1,4 +1,15 @@
-import { ArrayMinSize, IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, Matches, Max, Min } from "class-validator";
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from "class-validator";
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 

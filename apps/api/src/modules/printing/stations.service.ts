@@ -31,7 +31,9 @@ export class StationsService {
         restaurantId,
         name: dto.name,
         color: dto.color,
-        categories: dto.categoryIds?.length ? { create: dto.categoryIds.map((categoryId) => ({ categoryId })) } : undefined,
+        categories: dto.categoryIds?.length
+          ? { create: dto.categoryIds.map((categoryId) => ({ categoryId })) }
+          : undefined,
       },
       include: STATION_INCLUDE,
     });

@@ -12,7 +12,12 @@ export class CashMovementsService {
     return this.prisma.cashMovement.findMany({ where: { sessionId }, orderBy: { createdAt: "asc" } });
   }
 
-  async create(restaurantId: string, sessionId: string, currentUserId: string, dto: CreateMovementDto): Promise<PrismaCashMovement> {
+  async create(
+    restaurantId: string,
+    sessionId: string,
+    currentUserId: string,
+    dto: CreateMovementDto,
+  ): Promise<PrismaCashMovement> {
     const session = await this.requireSession(restaurantId, sessionId);
     if (session.status !== "OPEN") {
       throw new BadRequestException("Cannot add a movement to a closed cash session");

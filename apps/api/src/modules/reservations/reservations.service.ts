@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { isTimeGridAligned, isTimeWithinRange, isWrappedPortion, TableStatus } from "@mangiar/shared";
-import type { PrismaClient, ReservationStatus as PrismaReservationStatus, TimeSlot as PrismaTimeSlot } from "../../../generated/prisma/client";
+import type {
+  PrismaClient,
+  ReservationStatus as PrismaReservationStatus,
+  TimeSlot as PrismaTimeSlot,
+} from "../../../generated/prisma/client";
 import { addDays, zonedNow, zonedTimeToUtcISO } from "../../common/time-window.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import { TablesService } from "../salon/tables.service";
@@ -57,7 +61,10 @@ export class ReservationsService {
   }
 
   async findOne(restaurantId: string, id: string) {
-    const reservation = await this.prisma.reservation.findFirst({ where: { id, restaurantId }, include: RESERVATION_INCLUDE });
+    const reservation = await this.prisma.reservation.findFirst({
+      where: { id, restaurantId },
+      include: RESERVATION_INCLUDE,
+    });
     if (!reservation) {
       throw new NotFoundException("Reservation not found");
     }
@@ -121,7 +128,10 @@ export class ReservationsService {
 
   async update(restaurantId: string, id: string, dto: UpdateReservationDto) {
     const existing = await this.findOne(restaurantId, id);
-    const restaurant = await this.prisma.restaurant.findUniqueOrThrow({ where: { id: restaurantId }, select: { timezone: true } });
+    const restaurant = await this.prisma.restaurant.findUniqueOrThrow({
+      where: { id: restaurantId },
+      select: { timezone: true },
+    });
 
     const timeSlotId = dto.timeSlotId ?? existing.timeSlotId;
     const businessDate = dto.businessDate ?? existing.businessDate.toISOString().slice(0, 10);
@@ -222,7 +232,9 @@ export class ReservationsService {
 
     if (dto.status === "SEATED" && existing.tables.length > 0) {
       await Promise.all(
-        existing.tables.map((t) => this.tablesService.updateStatus(restaurantId, t.tableId, { status: TableStatus.OCCUPIED })),
+        existing.tables.map((t) =>
+          this.tablesService.updateStatus(restaurantId, t.tableId, { status: TableStatus.OCCUPIED }),
+        ),
       );
     }
 
@@ -245,14 +257,21 @@ export class ReservationsService {
     }
 
     if (!isTimeWithinRange(time, timeSlot.startTime, timeSlot.endTime)) {
-      throw new BadRequestException(`El horario debe estar dentro del turno (${timeSlot.startTime} a ${timeSlot.endTime})`);
+      throw new BadRequestException(
+        `El horario debe estar dentro del turno (${timeSlot.startTime} a ${timeSlot.endTime})`,
+      );
     }
     if (!isTimeGridAligned(time, timeSlot.startTime, timeSlot.slotIntervalMinutes)) {
       throw new BadRequestException(`El horario debe ajustarse a bloques de ${timeSlot.slotIntervalMinutes} minutos`);
     }
 
-    const restaurant = await this.prisma.restaurant.findUniqueOrThrow({ where: { id: restaurantId }, select: { timezone: true } });
-    const dateStr = isWrappedPortion(time, timeSlot.startTime, timeSlot.endTime) ? addDays(businessDate, 1) : businessDate;
+    const restaurant = await this.prisma.restaurant.findUniqueOrThrow({
+      where: { id: restaurantId },
+      select: { timezone: true },
+    });
+    const dateStr = isWrappedPortion(time, timeSlot.startTime, timeSlot.endTime)
+      ? addDays(businessDate, 1)
+      : businessDate;
     const date = new Date(zonedTimeToUtcISO(dateStr, time, restaurant.timezone));
 
     return { timeSlot, date };

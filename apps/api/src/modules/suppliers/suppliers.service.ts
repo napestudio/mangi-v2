@@ -1,5 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import type { Supplier as PrismaSupplier, SupplierLedgerEntry as PrismaSupplierLedgerEntry } from "../../../generated/prisma/client";
+import type {
+  Supplier as PrismaSupplier,
+  SupplierLedgerEntry as PrismaSupplierLedgerEntry,
+} from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { CreateSupplierDto } from "./dto/create-supplier.dto";
 import type { LinkIngredientDto } from "./dto/link-ingredient.dto";
@@ -84,7 +87,13 @@ export class SuppliersService {
 
     return this.prisma.$transaction(async (tx) => {
       const entry = await tx.supplierLedgerEntry.create({
-        data: { supplierId, type: "PAYMENT", amount: dto.amount, description: dto.description, createdById: currentUserId },
+        data: {
+          supplierId,
+          type: "PAYMENT",
+          amount: dto.amount,
+          description: dto.description,
+          createdById: currentUserId,
+        },
         include: { createdBy: { select: { id: true, name: true, username: true } } },
       });
       await tx.supplier.update({ where: { id: supplierId }, data: { balance: { decrement: dto.amount } } });

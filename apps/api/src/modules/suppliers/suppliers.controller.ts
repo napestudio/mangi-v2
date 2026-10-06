@@ -52,7 +52,11 @@ export class SuppliersController {
   }
 
   @Delete(":id/ingredients/:ingredientId")
-  unlinkIngredient(@CurrentUser() user: RequestUser, @Param("id") id: string, @Param("ingredientId") ingredientId: string) {
+  unlinkIngredient(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("ingredientId") ingredientId: string,
+  ) {
     return this.suppliersService.unlinkIngredient(requireRestaurantId(user), id, ingredientId);
   }
 

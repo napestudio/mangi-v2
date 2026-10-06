@@ -97,7 +97,11 @@ export class StockService {
     });
   }
 
-  private async resolveStaffId(restaurantId: string, staffId: string | undefined, currentUserId: string): Promise<string> {
+  private async resolveStaffId(
+    restaurantId: string,
+    staffId: string | undefined,
+    currentUserId: string,
+  ): Promise<string> {
     if (!staffId) return currentUserId;
     const staff = await this.prisma.user.findFirst({ where: { id: staffId, restaurantId } });
     if (!staff) {

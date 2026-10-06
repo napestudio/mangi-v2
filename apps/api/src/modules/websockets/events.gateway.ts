@@ -59,10 +59,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage("subscribe:restaurant")
-  handleSubscribeRestaurant(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() body: SubscribeRestaurantPayload,
-  ): void {
+  handleSubscribeRestaurant(@ConnectedSocket() client: Socket, @MessageBody() body: SubscribeRestaurantPayload): void {
     void client.join(this.restaurantRoom(body.restaurantId));
   }
 
@@ -77,7 +74,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const table = await this.tablesService.updateStatus(body.restaurantId, body.tableId, { status: body.status });
       this.emitTableStatusChanged(body.restaurantId, table.id, table.status as unknown as TableStatus);
     } catch {
-      this.logger.warn(`Rejected table status update for unknown table ${body.tableId} in restaurant ${body.restaurantId}`);
+      this.logger.warn(
+        `Rejected table status update for unknown table ${body.tableId} in restaurant ${body.restaurantId}`,
+      );
     }
   }
 
