@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Module, PaymentMethodExtended } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -65,11 +65,10 @@ export function CloseTableCheckout({ order, onCancel, onClosed }: CloseTableChec
   );
 
   // Preselecciona la caja asignada al sector de la mesa que se está cerrando — ver mangiar-cash.
-  useEffect(() => {
-    if (sessionId || !table) return;
+  if (!sessionId && table) {
     const match = openSessions.find((session) => session.sectorIds.includes(table.sectorId));
     if (match) setSessionId(match.id);
-  }, [table, openSessions, sessionId]);
+  }
 
   const checkout = useMutation({
     mutationFn: async () => {

@@ -49,11 +49,9 @@ function SalonPage() {
     },
   });
 
-  useEffect(() => {
-    if (!selectedSectorId && sectors && sectors.length > 0) {
-      setSelectedSectorId(sectors[0]!.id);
-    }
-  }, [sectors, selectedSectorId]);
+  if (!selectedSectorId && sectors && sectors.length > 0) {
+    setSelectedSectorId(sectors[0]!.id);
+  }
 
   const { data: tables } = useQuery({
     queryKey: ["tables", selectedSectorId],

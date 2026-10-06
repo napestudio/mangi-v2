@@ -89,6 +89,8 @@ function NewOrderPage() {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  // react(incompatible-library): react-hook-form's watch() isn't memo-safe, so React
+  // Compiler skips optimizing this component. Known react-hook-form limitation, not a bug.
   const selectedType = watch("type");
 
   const { data: deliveryZones } = useQuery({

@@ -89,11 +89,9 @@ export function ActiveOrderPanel({ table, onClosePanel, className }: ActiveOrder
     [orders],
   );
 
-  useEffect(() => {
-    if (!selectedOrderId && !creatingNew && sortedOrders.length > 0) {
-      setSelectedOrderId(sortedOrders[0]!.id);
-    }
-  }, [sortedOrders, selectedOrderId, creatingNew]);
+  if (!selectedOrderId && !creatingNew && sortedOrders.length > 0) {
+    setSelectedOrderId(sortedOrders[0]!.id);
+  }
 
   function patchOrder(updated: OrderView) {
     queryClient.setQueryData<OrderView[]>(["orders", "active", table.id], (prev) =>

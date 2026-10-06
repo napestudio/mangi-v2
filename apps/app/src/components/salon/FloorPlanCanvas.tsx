@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { TableShape, TableStatus } from "@mangiar/shared";
 import { cn } from "@/lib/utils";
 
@@ -53,11 +53,13 @@ export function FloorPlanCanvas({
   editable = false,
 }: FloorPlanCanvasProps) {
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [prevTables, setPrevTables] = useState(tables);
   const dragState = useRef<DragState | null>(null);
 
-  useEffect(() => {
+  if (tables !== prevTables) {
+    setPrevTables(tables);
     setPositions(Object.fromEntries(tables.map((table) => [table.id, { x: table.posX, y: table.posY }])));
-  }, [tables]);
+  }
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>, table: FloorPlanTable) => {
     if (!editable) return;

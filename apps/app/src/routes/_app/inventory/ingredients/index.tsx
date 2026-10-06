@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Module, UnitType, VolumeUnit, WeightUnit } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -92,6 +92,7 @@ function IngredientsPage() {
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<IngredientFormState>(emptyForm());
+  const [prevSelected, setPrevSelected] = useState(panel.selected);
 
   const { data: ingredients, isLoading } = useQuery({
     queryKey: ["ingredients"],
@@ -101,17 +102,19 @@ function IngredientsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!panel.selected) return;
-    setForm({
-      name: panel.selected.name,
-      unitType: panel.selected.unitType,
-      weightUnit: panel.selected.weightUnit ?? "",
-      volumeUnit: panel.selected.volumeUnit ?? "",
-      costPerUnit: panel.selected.costPerUnit ?? "",
-      minStock: panel.selected.minStock ?? "",
-    });
-  }, [panel.selected]);
+  if (panel.selected !== prevSelected) {
+    setPrevSelected(panel.selected);
+    if (panel.selected) {
+      setForm({
+        name: panel.selected.name,
+        unitType: panel.selected.unitType,
+        weightUnit: panel.selected.weightUnit ?? "",
+        volumeUnit: panel.selected.volumeUnit ?? "",
+        costPerUnit: panel.selected.costPerUnit ?? "",
+        minStock: panel.selected.minStock ?? "",
+      });
+    }
+  }
 
   function toPayload(state: IngredientFormState) {
     return {

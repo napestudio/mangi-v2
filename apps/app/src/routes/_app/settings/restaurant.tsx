@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { BusinessHoursShift } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -61,10 +61,13 @@ function RestaurantSettingsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!data || data.length === 0) return;
-    setShiftsByDay(groupByDay(data));
-  }, [data]);
+  const [prevData, setPrevData] = useState(data);
+  if (data !== prevData) {
+    setPrevData(data);
+    if (data && data.length > 0) {
+      setShiftsByDay(groupByDay(data));
+    }
+  }
 
   const save = useMutation({
     mutationFn: async () => {

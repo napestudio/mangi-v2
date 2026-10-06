@@ -18,6 +18,8 @@ export function DataTable<T>({
   emptyMessage = "No hay datos todavía.",
   className,
 }: DataTableProps<T>) {
+  // react(incompatible-library): useReactTable()'s returned functions aren't memo-safe,
+  // so React Compiler skips optimizing this component. Known TanStack Table limitation, not a bug.
   const table = useReactTable({
     data,
     columns,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -63,17 +63,20 @@ function FiscalSettingsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!config) return;
-    setForm((prev) => ({
-      ...prev,
-      cuit: config.cuit,
-      businessName: config.businessName,
-      salesPointNumber: String(config.salesPointNumber),
-      issuerCondition: config.issuerCondition,
-      environment: config.environment,
-    }));
-  }, [config]);
+  const [prevConfig, setPrevConfig] = useState(config);
+  if (config !== prevConfig) {
+    setPrevConfig(config);
+    if (config) {
+      setForm((prev) => ({
+        ...prev,
+        cuit: config.cuit,
+        businessName: config.businessName,
+        salesPointNumber: String(config.salesPointNumber),
+        issuerCondition: config.issuerCondition,
+        environment: config.environment,
+      }));
+    }
+  }
 
   const save = useMutation({
     mutationFn: async () => {

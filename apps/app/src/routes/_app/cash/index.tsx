@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CashMovementType, Module, PaymentMethodExtended, UserRole } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -139,6 +139,7 @@ function CashPage() {
 
   const [editName, setEditName] = useState("");
   const [editSectorIds, setEditSectorIds] = useState<string[]>([]);
+  const [prevSelected, setPrevSelected] = useState(panel.selected);
 
   const [openingAmount, setOpeningAmount] = useState("0");
   const [openedById, setOpenedById] = useState<string | undefined>(undefined);
@@ -146,11 +147,12 @@ function CashPage() {
   const [closingAmount, setClosingAmount] = useState("0");
   const [closedById, setClosedById] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
+  if (panel.selected !== prevSelected) {
+    setPrevSelected(panel.selected);
     setActiveSessionId(panel.selected?.sessions[0]?.id ?? null);
     setEditName(panel.selected?.name ?? "");
     setEditSectorIds(panel.selected?.sectors.map((s) => s.sector.id) ?? []);
-  }, [panel.selected]);
+  }
 
   const { data: registers, isLoading } = useQuery({
     queryKey: ["cash-registers"],

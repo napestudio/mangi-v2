@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { isAxiosError } from "axios";
 import { Module, TableShape } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +57,7 @@ function MapSettingsPage() {
   const [confirmingDeleteTable, setConfirmingDeleteTable] = useState(false);
 
   const [tableForm, setTableForm] = useState({ number: "", capacity: 2, shape: TableShape.SQUARE as TableShape });
+  const [prevSelectedTable, setPrevSelectedTable] = useState(tablePanel.selected);
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -66,11 +67,9 @@ function MapSettingsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!selectedSectorId && sectors && sectors.length > 0) {
-      setSelectedSectorId(sectors[0]!.id);
-    }
-  }, [sectors, selectedSectorId]);
+  if (!selectedSectorId && sectors && sectors.length > 0) {
+    setSelectedSectorId(sectors[0]!.id);
+  }
 
   const { data: tables } = useQuery({
     queryKey: ["tables", selectedSectorId],
@@ -92,7 +91,8 @@ function MapSettingsPage() {
     },
   });
 
-  useEffect(() => {
+  if (tablePanel.selected !== prevSelectedTable) {
+    setPrevSelectedTable(tablePanel.selected);
     if (tablePanel.selected) {
       setTableForm({
         number: tablePanel.selected.number,
@@ -101,7 +101,7 @@ function MapSettingsPage() {
       });
       setConfirmingDeleteTable(false);
     }
-  }, [tablePanel.selected]);
+  }
 
   const createSector = useMutation({
     mutationFn: async () => {
