@@ -166,7 +166,13 @@ export function OrderDetailPanel({
 
       <div className="shrink-0">
         <p className="mb-1.5 text-xs font-medium uppercase text-neutral-500">Adicionar</p>
-        <ProductSearchCombobox priceType={priceType} onSelect={addStaged} />
+        <ProductSearchCombobox
+          priceType={priceType}
+          onSelect={addStaged}
+          onConfirm={() => {
+            if (staged.length > 0 && !addItems.isPending) addItems.mutate();
+          }}
+        />
       </div>
 
       <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
