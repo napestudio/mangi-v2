@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { isAxiosError } from "axios";
-import { Module, TableShape } from "@mangiar/shared";
+import { Module, TableShape, TableStatus } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { ModuleGuard } from "@/components/guards/ModuleGuard";
-import { FloorPlanCanvas, type FloorPlanTable } from "@/components/salon/FloorPlanCanvas";
+import { FloorPlanCanvas, STATUS_STYLES, type FloorPlanTable } from "@/components/salon/FloorPlanCanvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,14 @@ const SHAPE_LABELS: Record<TableShape, string> = {
   [TableShape.RECTANGLE]: "Rectangular",
   [TableShape.CIRCLE]: "Redonda",
   [TableShape.WIDE]: "Ancha",
+};
+
+const TABLE_STATUS_LABELS: Record<TableStatus, string> = {
+  [TableStatus.EMPTY]: "Libre",
+  [TableStatus.OCCUPIED]: "Ocupada",
+  [TableStatus.RESERVED]: "Reservada",
+  [TableStatus.CLEANING]: "Limpieza",
+  [TableStatus.PAYING]: "Pagando",
 };
 
 export const Route = createFileRoute("/_app/settings/map")({
@@ -321,6 +329,7 @@ function MapSettingsPage() {
             canvasHeight={selectedSector.canvasHeight ?? 600}
             tables={tables ?? []}
             editable
+            showStatus={false}
             onTableClick={tablePanel.open}
             onTableMoved={(id, posX, posY) => moveTable.mutate({ id, posX, posY })}
           />
@@ -338,6 +347,18 @@ function MapSettingsPage() {
       >
         {tablePanel.selected && (
           <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase text-neutral-500">Estado</p>
+              <span
+                className={cn(
+                  "mt-1 inline-block rounded-full border px-2 py-0.5 text-xs font-medium",
+                  STATUS_STYLES[tablePanel.selected.status],
+                )}
+              >
+                {TABLE_STATUS_LABELS[tablePanel.selected.status]}
+              </span>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="tableNumber">Número</Label>
               <Input
