@@ -8,7 +8,6 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
-  LogOut,
   Package,
   Receipt,
   Settings,
@@ -19,6 +18,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Module } from "@mangiar/shared";
+import { Logo } from "@/components/ui/logo";
+import { UserMenu } from "@/components/layout/UserMenu";
 import { useCurrentUser, useLogout } from "@/hooks/useAuth";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
@@ -72,6 +73,10 @@ export function AppShell() {
   };
 
   useEffect(() => {
+    document.title = restaurant?.name ? `${restaurant.name} · Mangi.ar` : "Mangi.ar";
+  }, [restaurant?.name]);
+
+  useEffect(() => {
     if (!restaurant?.id) return;
 
     const socket = connectSocket(restaurant.id);
@@ -90,17 +95,7 @@ export function AppShell() {
     <div className="flex h-screen flex-col bg-neutral-50">
       <header className="grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center px-4">
         <div className="flex min-w-0 items-center gap-2">
-          <p className="truncate text-sm font-semibold text-neutral-900">{restaurant?.name ?? "Mangiar"}</p>
-          {hoursStatus && (
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-                hoursStatus.isOpen ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-600",
-              )}
-            >
-              {hoursStatus.isOpen ? "Abierto" : "Cerrado"}
-            </span>
-          )}
+          <Logo />
         </div>
 
         <nav className="flex items-center gap-1 rounded-full bg-white px-2 py-1.5 shadow-md">
@@ -126,16 +121,20 @@ export function AppShell() {
         </nav>
 
         <div className="flex items-center justify-end gap-3">
-          <span className="hidden truncate text-sm text-neutral-500 sm:inline">{user?.username}</span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            title="Cerrar sesión"
-            aria-label="Cerrar sesión"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="hidden min-w-0 items-center gap-2 sm:flex">
+            <span className="truncate text-sm text-neutral-500">{restaurant?.name ?? "Mangiar"}</span>
+            {hoursStatus && (
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                  hoursStatus.isOpen ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-600",
+                )}
+              >
+                {hoursStatus.isOpen ? "Abierto" : "Cerrado"}
+              </span>
+            )}
+          </div>
+          <UserMenu name={user?.name ?? user?.username} onLogout={handleLogout} />
         </div>
       </header>
       <main className="flex-1 overflow-y-auto p-6">

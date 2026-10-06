@@ -20,7 +20,8 @@ interface SectorOption {
 
 interface MoveOrderTablePickerProps {
   order: OrderView;
-  currentTable: FloorPlanTable;
+  /** Solo se usa el `id` (para excluir la mesa actual de la grilla de destino). */
+  currentTable: { id: string };
   onCancel: () => void;
   onMoved: () => void;
 }

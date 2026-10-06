@@ -13,6 +13,7 @@ export interface FloorPlanTable {
   width: number;
   height: number;
   rotation: number;
+  activeOrderCount: number;
 }
 
 interface FloorPlanCanvasProps {
@@ -134,7 +135,13 @@ export function FloorPlanCanvas({
             }}
           >
             <span>{table.number}</span>
-            <span className="text-[10px] font-normal opacity-70">{table.capacity}p</span>
+            {table.activeOrderCount > 1 && (
+              <span className="flex w-full flex-wrap items-center justify-center gap-0.5 px-1">
+                {Array.from({ length: table.activeOrderCount }).map((_, index) => (
+                  <span key={index} className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70" />
+                ))}
+              </span>
+            )}
           </div>
         );
       })}

@@ -15,6 +15,7 @@ import type { OrderView } from "./types";
 interface ActiveOrderPanelProps {
   table: FloorPlanTable;
   onClosePanel: () => void;
+  className?: string;
 }
 
 function initialsFor(userId: string | null, roster: StaffRosterItem[] | undefined): string {
@@ -39,7 +40,7 @@ function orderLabel(order: OrderView, index: number, roster: StaffRosterItem[] |
   return parts.join(" · ");
 }
 
-export function ActiveOrderPanel({ table, onClosePanel }: ActiveOrderPanelProps) {
+export function ActiveOrderPanel({ table, onClosePanel, className }: ActiveOrderPanelProps) {
   const queryClient = useQueryClient();
   const { restaurant } = useCurrentUser();
   const { data: roster } = useStaffRoster();
@@ -123,8 +124,8 @@ export function ActiveOrderPanel({ table, onClosePanel }: ActiveOrderPanelProps)
   const selectedOrder = sortedOrders.find((candidate) => candidate.id === selectedOrderId) ?? null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
+    <div className={cn("flex min-h-0 flex-col gap-4", className)}>
+      <div className="flex shrink-0 flex-wrap gap-2">
         {sortedOrders.map((order, index) => (
           <button
             key={order.id}
@@ -158,13 +159,15 @@ export function ActiveOrderPanel({ table, onClosePanel }: ActiveOrderPanelProps)
       </div>
 
       {creatingNew ? (
-        <OpenTableForm
-          table={table}
-          onCreated={(order) => {
-            setCreatingNew(false);
-            setSelectedOrderId(order.id);
-          }}
-        />
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <OpenTableForm
+            table={table}
+            onCreated={(order) => {
+              setCreatingNew(false);
+              setSelectedOrderId(order.id);
+            }}
+          />
+        </div>
       ) : (
         selectedOrder && (
           <OrderDetailPanel
@@ -174,6 +177,7 @@ export function ActiveOrderPanel({ table, onClosePanel }: ActiveOrderPanelProps)
             onOrderClosed={removeOrderFromTable}
             onOrderRemoved={removeOrderFromTable}
             onOrderMoved={removeOrderFromTable}
+            className="flex-1 min-h-0"
           />
         )
       )}

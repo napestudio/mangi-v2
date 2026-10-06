@@ -52,7 +52,7 @@ export function NoteEditor({ value, onChange }: NoteEditorProps) {
   }
 
   return (
-    <div className="mt-1 flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <button
         type="button"
         onClick={() => {
@@ -64,7 +64,7 @@ export function NoteEditor({ value, onChange }: NoteEditorProps) {
       >
         <MessageSquare className="h-3.5 w-3.5" />
       </button>
-      {value && <p className="text-xs italic text-neutral-500">{value}</p>}
+      {value && <p className="truncate text-xs italic text-neutral-500">{value}</p>}
     </div>
   );
 }

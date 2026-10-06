@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { PriceType } from "@mangiar/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
@@ -6,10 +7,11 @@ import { formatCurrency } from "@/lib/currency";
 import type { ProductOption } from "./types";
 
 interface ProductSearchComboboxProps {
+  priceType: PriceType;
   onSelect: (product: ProductOption, unitPrice: number) => void;
 }
 
-export function ProductSearchCombobox({ onSelect }: ProductSearchComboboxProps) {
+export function ProductSearchCombobox({ priceType, onSelect }: ProductSearchComboboxProps) {
   const [query, setQuery] = useState("");
 
   const { data: products } = useQuery({
@@ -24,10 +26,10 @@ export function ProductSearchCombobox({ onSelect }: ProductSearchComboboxProps) 
     const term = query.trim().toLowerCase();
     if (!term) return [];
     return (products ?? [])
-      .filter((product) => product.isActive && product.prices.some((price) => price.type === "DINE_IN"))
+      .filter((product) => product.isActive && product.prices.some((price) => price.type === priceType))
       .filter((product) => product.name.toLowerCase().includes(term))
       .slice(0, 8);
-  }, [products, query]);
+  }, [products, query, priceType]);
 
   return (
     <div className="relative">
@@ -35,7 +37,7 @@ export function ProductSearchCombobox({ onSelect }: ProductSearchComboboxProps) 
       {matches.length > 0 && (
         <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg">
           {matches.map((product) => {
-            const price = product.prices.find((candidate) => candidate.type === "DINE_IN")!;
+            const price = product.prices.find((candidate) => candidate.type === priceType)!;
             return (
               <button
                 key={product.id}

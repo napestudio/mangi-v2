@@ -1,5 +1,7 @@
+import type { OrderStatus, OrderType, PriceType } from "@mangiar/shared";
+
 export interface ProductPrice {
-  type: string;
+  type: PriceType;
   price: string;
 }
 
@@ -31,8 +33,9 @@ export interface OrderItemView {
 
 export interface OrderView {
   id: string;
-  type: string;
-  status: string;
+  code: string;
+  type: OrderType;
+  status: OrderStatus;
   tableId: string | null;
   clientId: string | null;
   assignedToId: string | null;

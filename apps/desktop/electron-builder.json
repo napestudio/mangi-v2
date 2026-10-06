@@ -1,12 +1,14 @@
 {
   "appId": "com.mangiar.desktop",
-  "productName": "Mangiar",
+  "productName": "Mangi.ar",
   "directories": {
     "output": "release"
   },
   "files": ["dist/**/*", "package.json"],
+  "icon": "build/icon.png",
   "win": {
-    "target": ["nsis"]
+    "target": ["nsis"],
+    "icon": "build/icon.ico"
   },
   "mac": {
     "target": ["dmg"]

@@ -1,12 +1,15 @@
-import { Module, type OrderStatus, type OrderType } from "@mangiar/shared";
+import { Module, OrderStatus, OrderType } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
+import { OrderDetailPanel } from "@/components/salon/OrderDetailPanel";
+import type { OrderView } from "@/components/salon/types";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/currency";
 import { ORDER_STATUS_LABELS, ORDER_TYPE_LABELS } from "@/lib/labels";
 
 interface OrderInvoiceRef {
@@ -14,29 +17,20 @@ interface OrderInvoiceRef {
   status: "PENDING" | "EMITTED" | "CANCELLED" | "FAILED";
 }
 
-interface OrderItemRef {
-  id: string;
-  name: string;
-  quantity: number;
-  sentToKitchen: boolean;
+interface OrderListItem extends OrderView {
+  needsInvoice: boolean;
+  invoices: OrderInvoiceRef[];
+  table: { id: string; number: string } | null;
 }
 
-interface OrderListItem {
-  id: string;
-  type: OrderType;
-  status: OrderStatus;
-  total: string;
-  needsInvoice: boolean;
-  createdAt: string;
-  invoices: OrderInvoiceRef[];
-  items: OrderItemRef[];
-}
+const ACTIVE_STATUSES: OrderStatus[] = [OrderStatus.PENDING, OrderStatus.IN_PROGRESS];
 
 export const Route = createFileRoute("/_app/orders/")({
   component: OrdersPage,
 });
 
 const columns: ColumnDef<OrderListItem>[] = [
+  { id: "code", header: "Código", cell: ({ row }) => row.original.code },
   { id: "type", header: "Tipo", cell: ({ row }) => ORDER_TYPE_LABELS[row.original.type] },
   {
     id: "createdAt",
@@ -46,7 +40,7 @@ const columns: ColumnDef<OrderListItem>[] = [
   {
     id: "total",
     header: "Total",
-    cell: ({ row }) => `$${row.original.total}`,
+    cell: ({ row }) => formatCurrency(Number(row.original.total)),
   },
   { id: "status", header: "Estado", cell: ({ row }) => ORDER_STATUS_LABELS[row.original.status] },
 ];
@@ -79,20 +73,17 @@ function OrdersPage() {
 
   const hasActiveInvoice = panel.selected?.invoices.some((invoice) => invoice.status === "EMITTED" || invoice.status === "PENDING");
   const canInvoice = hasModule(Module.FISCAL) && panel.selected?.needsInvoice && panel.selected.status === "COMPLETED" && !hasActiveInvoice;
+  const isActive = panel.selected ? ACTIVE_STATUSES.includes(panel.selected.status) : false;
 
-  const pendingKitchenItems = panel.selected?.items.filter((item) => !item.sentToKitchen) ?? [];
+  function handleOrderUpdated(updated: OrderView) {
+    if (!panel.selected) return;
+    panel.open({ ...panel.selected, ...updated });
+  }
 
-  const sendToKitchen = useMutation({
-    mutationFn: async () => {
-      if (!panel.selected) return;
-      await apiClient.patch(`/orders/${panel.selected.id}/send-to-kitchen`, {
-        itemIds: pendingKitchenItems.map((item) => item.id),
-      });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
-  });
+  function refreshAndClosePanel() {
+    void queryClient.invalidateQueries({ queryKey: ["orders"] });
+    panel.close();
+  }
 
   return (
     <div className="flex h-full flex-col gap-6">
@@ -114,46 +105,74 @@ function OrdersPage() {
       <SidePanel
         open={panel.isOpen}
         onClose={panel.close}
-        title={panel.selected ? `Pedido ${ORDER_TYPE_LABELS[panel.selected.type]}` : ""}
+        title={panel.selected ? `Pedido ${panel.selected.code} · ${ORDER_TYPE_LABELS[panel.selected.type]}` : ""}
+        bodyClassName="flex min-h-0 flex-1 flex-col"
       >
         {panel.selected && (
-          <dl className="flex flex-col gap-4 text-sm">
-            <div>
-              <dt className="text-xs font-medium uppercase text-neutral-500">Fecha</dt>
-              <dd className="text-neutral-900">{new Date(panel.selected.createdAt).toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase text-neutral-500">Estado</dt>
-              <dd className="text-neutral-900">{ORDER_STATUS_LABELS[panel.selected.status]}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase text-neutral-500">Total</dt>
-              <dd className="text-neutral-900">${panel.selected.total}</dd>
-            </div>
-
-            {hasModule(Module.PRINTING) && panel.selected.items.length > 0 && (
+          <div className="flex h-full min-h-0 flex-col gap-6 px-6 py-4">
+            <dl className="grid shrink-0 grid-cols-2 gap-3 text-sm">
               <div>
-                <dt className="text-xs font-medium uppercase text-neutral-500">Cocina</dt>
-                {pendingKitchenItems.length === 0 ? (
-                  <dd className="text-neutral-900">Todos los items ya se enviaron</dd>
-                ) : (
-                  <Button size="sm" className="mt-1" disabled={sendToKitchen.isPending} onClick={() => sendToKitchen.mutate()}>
-                    Enviar a cocina ({pendingKitchenItems.length})
-                  </Button>
-                )}
-                {sendToKitchen.isError && <p className="mt-1 text-xs text-red-600">No se pudo enviar a cocina.</p>}
+                <dt className="text-xs font-medium uppercase text-neutral-500">Fecha</dt>
+                <dd className="text-neutral-900">{new Date(panel.selected.createdAt).toLocaleString()}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase text-neutral-500">Estado</dt>
+                <dd className="text-neutral-900">{ORDER_STATUS_LABELS[panel.selected.status]}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase text-neutral-500">Tipo</dt>
+                <dd className="text-neutral-900">{ORDER_TYPE_LABELS[panel.selected.type]}</dd>
+              </div>
+              {panel.selected.type === OrderType.DINE_IN && (
+                <div>
+                  <dt className="text-xs font-medium uppercase text-neutral-500">Mesa</dt>
+                  <dd className="text-neutral-900">
+                    {panel.selected.table ? `Mesa ${panel.selected.table.number}` : "Sin asignar"}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            {isActive ? (
+              <OrderDetailPanel
+                order={panel.selected}
+                onOrderUpdated={handleOrderUpdated}
+                onOrderClosed={refreshAndClosePanel}
+                onOrderRemoved={refreshAndClosePanel}
+                onOrderMoved={refreshAndClosePanel}
+                className="flex-1 min-h-0"
+              />
+            ) : (
+              <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto border-t border-neutral-200 pt-3">
+                {panel.selected.items.map((item) => (
+                  <div key={item.id} className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-1">
+                        <p className="truncate text-sm font-medium text-neutral-900">{item.name}</p>
+                        <span className="shrink-0 text-xs font-medium text-neutral-500">x{item.quantity}</span>
+                      </div>
+                      {item.notes && <p className="text-xs italic text-neutral-500">Nota: {item.notes}</p>}
+                    </div>
+                    <span className="shrink-0 text-sm font-medium text-neutral-900">
+                      {formatCurrency(Number(item.totalPrice))}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
+                  <span className="text-sm font-semibold text-neutral-900">Total:</span>
+                  <span className="text-lg font-semibold text-neutral-900">{formatCurrency(Number(panel.selected.total))}</span>
+                </div>
               </div>
             )}
 
             {hasModule(Module.FISCAL) && panel.selected.needsInvoice && (
-              <div>
-                <dt className="text-xs font-medium uppercase text-neutral-500">Facturación</dt>
+              <div className="shrink-0">
+                <p className="mb-1 text-xs font-medium uppercase text-neutral-500">Facturación</p>
                 {hasActiveInvoice ? (
-                  <dd className="text-neutral-900">Ya facturado</dd>
+                  <p className="text-sm text-neutral-900">Ya facturado</p>
                 ) : (
                   <Button
                     size="sm"
-                    className="mt-1"
                     disabled={!canInvoice || issueInvoice.isPending}
                     onClick={() => issueInvoice.mutate()}
                   >
@@ -163,7 +182,7 @@ function OrdersPage() {
                 {issueInvoice.isError && <p className="mt-1 text-xs text-red-600">No se pudo facturar el pedido.</p>}
               </div>
             )}
-          </dl>
+          </div>
         )}
       </SidePanel>
     </div>

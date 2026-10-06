@@ -9,7 +9,7 @@ export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   [OrderStatus.PENDING]: "Pendiente",
-  [OrderStatus.IN_PROGRESS]: "En curso",
+  [OrderStatus.IN_PROGRESS]: "En progreso",
   [OrderStatus.COMPLETED]: "Completado",
   [OrderStatus.CANCELED]: "Cancelado",
 };

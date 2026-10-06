@@ -31,6 +31,19 @@ export function isWrappedPortion(time: string, startTime: string, endTime: strin
   return crossesMidnight(startTime, endTime) && timeToMinutes(time) < timeToMinutes(startTime);
 }
 
+/** Splits a (possibly midnight-crossing) time range into one or two [start, end) minute intervals for overlap checks. */
+export function timeRangeToIntervals(startTime: string, endTime: string): Array<[number, number]> {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  if (crossesMidnight(startTime, endTime)) {
+    return [
+      [start, 1440],
+      [0, end],
+    ];
+  }
+  return [[start, end]];
+}
+
 /** Generates HH:mm options from startTime up to (excluding) endTime, every intervalMinutes, handling midnight crossing. */
 export function generateTimeGrid(startTime: string, endTime: string, intervalMinutes: number): string[] {
   const start = timeToMinutes(startTime);
