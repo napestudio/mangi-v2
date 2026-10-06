@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface RestaurantLocation {
@@ -79,7 +80,7 @@ const columns: ColumnDef<DeliveryZoneItem>[] = [
       return `${min}km – ${max}`;
     },
   },
-  { id: "fee", header: "Costo", cell: ({ row }) => `$${row.original.fee}` },
+  { id: "fee", header: "Costo", cell: ({ row }) => formatPrice(row.original.fee) },
   { id: "priority", header: "Prioridad", cell: ({ row }) => row.original.priority },
   {
     id: "status",

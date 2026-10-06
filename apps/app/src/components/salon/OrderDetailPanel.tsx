@@ -5,7 +5,7 @@ import { ArrowLeftRight, Minus, Plus, Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { FloorPlanTable } from "./FloorPlanCanvas";
 import { CloseTableCheckout } from "./CloseTableCheckout";
@@ -235,7 +235,7 @@ export function OrderDetailPanel({
                     {item.notes && <p className="text-xs italic text-neutral-500">Nota: {item.notes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900">{formatCurrency(Number(item.totalPrice))}</span>
+                    <span className="text-sm font-medium text-neutral-900">{formatPrice(Number(item.totalPrice))}</span>
                     <button
                       type="button"
                       onClick={() => (item.sentToKitchen ? setPendingRemoveItemId(item.id) : removeItem.mutate(item.id))}
@@ -274,7 +274,7 @@ export function OrderDetailPanel({
         <div className="flex shrink-0 flex-col gap-3 border-t border-neutral-200 pt-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-neutral-500">Total a confirmar:</span>
-            <span className="text-lg font-semibold text-neutral-900">{formatCurrency(stagedTotal)}</span>
+            <span className="text-lg font-semibold text-neutral-900">{formatPrice(stagedTotal)}</span>
           </div>
           {addItems.isError && <p className="text-sm text-red-600">No se pudieron agregar los productos.</p>}
           <div className="flex gap-2">
@@ -291,7 +291,7 @@ export function OrderDetailPanel({
           {hasConfirmedItems && (
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-neutral-900">Total:</span>
-              <span className="text-lg font-semibold text-neutral-900">{formatCurrency(Number(order.total))}</span>
+              <span className="text-lg font-semibold text-neutral-900">{formatPrice(Number(order.total))}</span>
             </div>
           )}
           {removeEmptyOrder.isError && <p className="text-sm text-red-600">No se pudo eliminar el pedido.</p>}

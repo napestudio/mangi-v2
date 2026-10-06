@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface InvoiceItem {
@@ -56,7 +57,7 @@ const columns: ColumnDef<InvoiceItem>[] = [
   { id: "type", header: "Tipo", cell: ({ row }) => `Factura ${row.original.invoiceType}` },
   { id: "number", header: "Número", cell: ({ row }) => `${row.original.salesPoint}-${String(row.original.invoiceNumber).padStart(8, "0")}` },
   { id: "client", header: "Cliente", cell: ({ row }) => row.original.clientName ?? "Consumidor final" },
-  { id: "total", header: "Total", cell: ({ row }) => `$${row.original.total}` },
+  { id: "total", header: "Total", cell: ({ row }) => formatPrice(row.original.total) },
   {
     id: "status",
     header: "Estado",
@@ -130,15 +131,15 @@ function InvoicesPage() {
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase text-neutral-500">Subtotal</dt>
-                <dd className="text-neutral-900">${panel.selected.subtotal}</dd>
+                <dd className="text-neutral-900">{formatPrice(panel.selected.subtotal)}</dd>
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase text-neutral-500">IVA</dt>
-                <dd className="text-neutral-900">${panel.selected.vatAmount}</dd>
+                <dd className="text-neutral-900">{formatPrice(panel.selected.vatAmount)}</dd>
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase text-neutral-500">Total</dt>
-                <dd className="font-semibold text-neutral-900">${panel.selected.total}</dd>
+                <dd className="font-semibold text-neutral-900">{formatPrice(panel.selected.total)}</dd>
               </div>
               {panel.selected.cae && (
                 <div>

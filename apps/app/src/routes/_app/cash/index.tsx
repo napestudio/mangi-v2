@@ -13,6 +13,7 @@ import { ModuleGuard } from "@/components/guards/ModuleGuard";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface SectorRef {
@@ -123,7 +124,7 @@ const columns: ColumnDef<CashRegisterItem>[] = [
   {
     id: "openingAmount",
     header: "Apertura",
-    cell: ({ row }) => (row.original.sessions[0] ? `$${row.original.sessions[0]!.openingAmount}` : "—"),
+    cell: ({ row }) => (row.original.sessions[0] ? formatPrice(row.original.sessions[0]!.openingAmount) : "—"),
   },
 ];
 
@@ -375,7 +376,7 @@ function CashPage() {
               </div>
               <div>
                 <p className="text-xs font-medium uppercase text-neutral-500">Monto de apertura</p>
-                <p className="text-neutral-900">${session.openingAmount}</p>
+                <p className="text-neutral-900">{formatPrice(session.openingAmount)}</p>
               </div>
             </div>
 
@@ -388,7 +389,7 @@ function CashPage() {
                     <span>
                       {MOVEMENT_TYPE_LABELS[movement.type]} · {PAYMENT_METHOD_LABELS[movement.method]}
                     </span>
-                    <span className="font-medium">${movement.amount}</span>
+                    <span className="font-medium">{formatPrice(movement.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -416,9 +417,9 @@ function CashPage() {
                 <p className="text-xs font-medium uppercase text-neutral-500">Resultado del arqueo</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <span className="text-neutral-500">Esperado</span>
-                  <span className="text-right font-medium">${session.expectedAmount}</span>
+                  <span className="text-right font-medium">{formatPrice(session.expectedAmount!)}</span>
                   <span className="text-neutral-500">Contado</span>
-                  <span className="text-right font-medium">${session.closingAmount}</span>
+                  <span className="text-right font-medium">{formatPrice(session.closingAmount!)}</span>
                   <span className="text-neutral-500">Diferencia</span>
                   <span
                     className={cn(
@@ -430,7 +431,7 @@ function CashPage() {
                           : "text-red-600",
                     )}
                   >
-                    ${session.variance}
+                    {formatPrice(session.variance!)}
                   </span>
                 </div>
                 {user?.role === UserRole.ADMIN && (

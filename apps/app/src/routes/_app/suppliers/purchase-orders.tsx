@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 interface SupplierOption {
@@ -90,7 +91,7 @@ const columns: ColumnDef<PurchaseOrderListItem>[] = [
       </span>
     ),
   },
-  { id: "total", header: "Total", cell: ({ row }) => (row.original.totalCost ? `$${row.original.totalCost}` : "—") },
+  { id: "total", header: "Total", cell: ({ row }) => (row.original.totalCost ? formatPrice(row.original.totalCost) : "—") },
   { id: "date", header: "Fecha", cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString("es-AR") },
 ];
 
@@ -279,7 +280,7 @@ function PurchaseOrdersPage() {
             Agregar item
           </Button>
 
-          <p className="text-sm font-medium text-neutral-700">Total: ${total.toFixed(2)}</p>
+          <p className="text-sm font-medium text-neutral-700">Total: {formatPrice(total)}</p>
 
           <div className="flex gap-2">
             <Button size="sm" disabled={!supplierId || items.length === 0 || createPO.isPending} onClick={() => createPO.mutate()}>
@@ -318,14 +319,14 @@ function PurchaseOrdersPage() {
                   <div key={item.id} className="flex items-center justify-between border-b border-neutral-100 py-1">
                     <span>{item.product?.name ?? item.ingredient?.name ?? item.description ?? "—"}</span>
                     <span className="text-neutral-500">
-                      {item.quantity} × ${item.unitCost} = ${item.totalCost}
+                      {item.quantity} × {formatPrice(item.unitCost)} = {formatPrice(item.totalCost)}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <p className="text-sm font-semibold text-neutral-900">Total: ${panel.selected.totalCost ?? "0"}</p>
+            <p className="text-sm font-semibold text-neutral-900">Total: {formatPrice(panel.selected.totalCost ?? 0)}</p>
 
             {panel.selected.status !== "RECEIVED" && panel.selected.status !== "CANCELLED" && (
               <Button size="sm" onClick={() => markReceived.mutate()} disabled={markReceived.isPending}>

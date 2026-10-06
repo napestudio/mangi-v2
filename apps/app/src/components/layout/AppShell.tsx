@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import type { BusinessHoursStatus } from "@mangiar/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  useMatchRoute,
+  useNavigate,
+} from "@tanstack/react-router";
 import {
   Armchair,
   CalendarClock,
@@ -36,13 +41,29 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
-  { label: "Pedidos", to: "/orders", icon: ClipboardList },
-  { label: "Venta rápida", to: "/pos/counter", icon: ShoppingBag },
-  { label: "Menú", to: "/menu/products", icon: UtensilsCrossed },
   { label: "Salón", to: "/salon", icon: Armchair, module: Module.SALON },
-  { label: "Reservas", to: "/reservations", icon: CalendarClock, module: Module.RESERVATIONS },
-  { label: "Inventario", to: "/inventory/ingredients", icon: Package, module: Module.INVENTORY },
-  { label: "Proveedores", to: "/suppliers", icon: Truck, module: Module.SUPPLIERS },
+  { label: "Pedidos", to: "/orders", icon: ClipboardList },
+  { label: "Mostrador", to: "/pos/counter", icon: ShoppingBag },
+
+  {
+    label: "Reservas",
+    to: "/reservations",
+    icon: CalendarClock,
+    module: Module.RESERVATIONS,
+  },
+  { label: "Menú", to: "/menu/products", icon: UtensilsCrossed },
+  {
+    label: "Ingredientes",
+    to: "/inventory/ingredients",
+    icon: Package,
+    module: Module.INVENTORY,
+  },
+  {
+    label: "Proveedores",
+    to: "/suppliers",
+    icon: Truck,
+    module: Module.SUPPLIERS,
+  },
   { label: "Caja", to: "/cash", icon: Wallet, module: Module.CASH },
   { label: "Gastos", to: "/expenses", icon: Receipt, module: Module.EXPENSES },
   { label: "Facturas", to: "/invoices", icon: FileText, module: Module.FISCAL },
@@ -55,12 +76,16 @@ export function AppShell() {
   const matchRoute = useMatchRoute();
   const navigate = useNavigate();
   const logout = useLogout();
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.module || hasModule(item.module));
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => !item.module || hasModule(item.module),
+  );
 
   const { data: hoursStatus } = useQuery({
     queryKey: ["business-hours-status"],
     queryFn: async () => {
-      const { data } = await apiClient.get<ApiEnvelope<BusinessHoursStatus>>("/business-hours/status");
+      const { data } = await apiClient.get<ApiEnvelope<BusinessHoursStatus>>(
+        "/business-hours/status",
+      );
       return data.data;
     },
     refetchInterval: 60_000,
@@ -73,7 +98,9 @@ export function AppShell() {
   };
 
   useEffect(() => {
-    document.title = restaurant?.name ? `${restaurant.name} · Mangi.ar` : "Mangi.ar";
+    document.title = restaurant?.name
+      ? `${restaurant.name} · Mangi.ar`
+      : "Mangi.ar";
   }, [restaurant?.name]);
 
   useEffect(() => {
@@ -122,19 +149,26 @@ export function AppShell() {
 
         <div className="flex items-center justify-end gap-3">
           <div className="hidden min-w-0 items-center gap-2 sm:flex">
-            <span className="truncate text-sm text-neutral-500">{restaurant?.name ?? "Mangiar"}</span>
+            <span className="truncate text-sm text-neutral-500">
+              {restaurant?.name ?? "Mangiar"}
+            </span>
             {hoursStatus && (
               <span
                 className={cn(
                   "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-                  hoursStatus.isOpen ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-600",
+                  hoursStatus.isOpen
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-neutral-200 text-neutral-600",
                 )}
               >
                 {hoursStatus.isOpen ? "Abierto" : "Cerrado"}
               </span>
             )}
           </div>
-          <UserMenu name={user?.name ?? user?.username} onLogout={handleLogout} />
+          <UserMenu
+            name={user?.name ?? user?.username}
+            onLogout={handleLogout}
+          />
         </div>
       </header>
       <main className="flex-1 overflow-y-auto p-6">

@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 import { ORDER_TYPE_LABELS } from "@/lib/labels";
 
 interface ProductOption {
@@ -204,7 +205,7 @@ function NewOrderPage() {
                     ?.filter((zone) => zone.isActive)
                     .map((zone) => (
                       <option key={zone.id} value={zone.id}>
-                        {zone.name} — ${zone.fee}
+                        {zone.name} — {formatPrice(zone.fee)}
                       </option>
                     ))}
                 </select>

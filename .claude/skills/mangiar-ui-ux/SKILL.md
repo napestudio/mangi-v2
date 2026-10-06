@@ -30,10 +30,11 @@ Para convenciones de backend/arquitectura ver `mangiar-architecture`. Esta skill
 ## Patrón CRUD estándar (DataTable + SidePanel)
 
 Casi toda pantalla de listado sigue el mismo esqueleto, visto en `suppliers/index.tsx`, `expenses/index.tsx`, `settings/delivery.tsx`, etc.:
+
 - `<DataTable columns={...} data={...} isLoading={...} onRowClick={panel.open} />` para el listado.
 - Crear: un formulario **inline** que aparece arriba de la tabla al tocar el botón "+" (estado `creating`/`setCreating`), no un modal.
 - Ver/editar un registro existente: `<SidePanel>` (`useSidePanel<T>()`) que se abre con la fila clickeada, panel lateral derecho con `dl`/`dt`/`dd` para el detalle y botones de acción abajo.
-- **Única excepción deliberada**: `/pos/counter` (venta rápida) — grid de productos tappable en vez de tabla, carrito a la derecha, optimizado para velocidad táctil, no para explorar datos. No replicar el patrón DataTable ahí.
+- **Única excepción deliberada**: `/pos/counter` (venta rápida/mostrador) — grid de productos tappable en vez de tabla, carrito a la derecha, optimizado para velocidad táctil, no para explorar datos. No replicar el patrón DataTable ahí.
 
 ## Componentes y estilos
 
@@ -47,6 +48,16 @@ Casi toda pantalla de listado sigue el mismo esqueleto, visto en `suppliers/inde
 ## Formularios y staff-attribution
 
 Toda entidad que registra una acción de un empleado (movimiento de caja, gasto, apertura/cierre de sesión) tiene un campo opcional `xById` que default-ea a `currentUserId` pero se puede sobreescribir con el componente `<StaffPicker value={...} onChange={...} />` (`apps/app/src/components/staff/StaffPicker.tsx`), validado server-side contra el roster del restaurante.
+
+## Formato de precios y montos
+
+- Todo valor monetario que se muestra en la UI pasa por `formatPrice()` (`apps/app/src/lib/currency.ts`) — nunca interpolar el valor crudo (`` `$${value}` ``) ni usar `.toFixed(2)` a mano. Formato argentino: separador de miles `.`, coma decimal solo cuando hay centavos (`4000` → `"$4.000"`, `7500.20` → `"$7.500,20"`), negativos como `"-$X"` (nunca `"$-X"`) — pedido explícito del usuario para normalizar cómo se ven los precios en toda la app.
+- `formatPrice()` ya incluye el signo `$` en el resultado — no agregarlo de nuevo en el JSX que lo llama (`{formatPrice(value)}`, no `` `${formatPrice(value)}` ``).
+- Es una función plana, deliberadamente **no** un hook de React (`useX`), para poder llamarla también dentro de `cell: ({ row }) => ...` de columnas de `DataTable` y otros callbacks fuera de un componente, donde no se pueden invocar hooks.
+
+## Inputs numéricos no escuchan scroll
+
+Todo `<input type="number">` pasa por el componente compartido `<Input>` (`apps/app/src/components/ui/input.tsx`), que ya intercepta el evento `wheel` y hace `blur()` del input cuando `type === "number"` — así el scroll del mouse nunca cambia el valor por accidente (pedido explícito del usuario, por el riesgo de errores silenciosos en montos/cantidades). Si se agrega un input numérico nuevo, alcanza con usar `<Input type="number" />`; no hace falta (ni se debe) agregar un `onWheel` manual por componente.
 
 ## Guards de módulo en UI
 

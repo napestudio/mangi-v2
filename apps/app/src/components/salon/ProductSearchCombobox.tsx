@@ -3,7 +3,7 @@ import type { PriceType } from "@mangiar/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 import type { ProductOption } from "./types";
 
 interface ProductSearchComboboxProps {
@@ -49,7 +49,7 @@ export function ProductSearchCombobox({ priceType, onSelect }: ProductSearchComb
                 className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-neutral-50"
               >
                 <span className="font-medium text-neutral-900">{product.name}</span>
-                <span className="text-neutral-500">{formatCurrency(Number(price.price))}</span>
+                <span className="text-neutral-500">{formatPrice(Number(price.price))}</span>
               </button>
             );
           })}

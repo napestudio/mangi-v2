@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 
 interface IngredientItem {
   id: string;
@@ -83,7 +84,7 @@ const columns: ColumnDef<IngredientItem>[] = [
   { accessorKey: "name", header: "Nombre" },
   { id: "stock", header: "Stock", cell: ({ row }) => `${row.original.stock} ${unitAbbr(row.original)}` },
   { id: "minStock", header: "Stock mínimo", cell: ({ row }) => row.original.minStock ?? "—" },
-  { id: "cost", header: "Costo/u.", cell: ({ row }) => (row.original.costPerUnit ? `$${row.original.costPerUnit}` : "—") },
+  { id: "cost", header: "Costo/u.", cell: ({ row }) => (row.original.costPerUnit ? formatPrice(row.original.costPerUnit) : "—") },
 ];
 
 function IngredientsPage() {

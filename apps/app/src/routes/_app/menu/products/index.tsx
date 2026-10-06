@@ -8,6 +8,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatPrice } from "@/lib/currency";
 
 interface ProductListItem {
   id: string;
@@ -48,7 +49,7 @@ function ProductsPage() {
       {
         id: "price",
         header: "Precio",
-        cell: ({ row }) => (row.original.prices[0] ? `$${row.original.prices[0].price}` : "Sin precio"),
+        cell: ({ row }) => (row.original.prices[0] ? formatPrice(row.original.prices[0].price) : "Sin precio"),
       },
       {
         id: "status",
@@ -95,7 +96,7 @@ function ProductsPage() {
                 <dd className="flex flex-col gap-1">
                   {panel.selected.prices.map((price) => (
                     <span key={price.type} className="text-neutral-900">
-                      {price.type}: ${price.price}
+                      {price.type}: {formatPrice(price.price)}
                     </span>
                   ))}
                 </dd>

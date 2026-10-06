@@ -9,7 +9,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 import { ORDER_STATUS_LABELS, ORDER_TYPE_LABELS } from "@/lib/labels";
 
 interface OrderInvoiceRef {
@@ -40,7 +40,7 @@ const columns: ColumnDef<OrderListItem>[] = [
   {
     id: "total",
     header: "Total",
-    cell: ({ row }) => formatCurrency(Number(row.original.total)),
+    cell: ({ row }) => formatPrice(Number(row.original.total)),
   },
   { id: "status", header: "Estado", cell: ({ row }) => ORDER_STATUS_LABELS[row.original.status] },
 ];
@@ -154,13 +154,13 @@ function OrdersPage() {
                       {item.notes && <p className="text-xs italic text-neutral-500">Nota: {item.notes}</p>}
                     </div>
                     <span className="shrink-0 text-sm font-medium text-neutral-900">
-                      {formatCurrency(Number(item.totalPrice))}
+                      {formatPrice(Number(item.totalPrice))}
                     </span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
                   <span className="text-sm font-semibold text-neutral-900">Total:</span>
-                  <span className="text-lg font-semibold text-neutral-900">{formatCurrency(Number(panel.selected.total))}</span>
+                  <span className="text-lg font-semibold text-neutral-900">{formatPrice(Number(panel.selected.total))}</span>
                 </div>
               </div>
             )}
