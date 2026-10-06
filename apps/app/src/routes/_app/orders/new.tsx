@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { ORDER_TYPE_LABELS } from "@/lib/labels";
 
 interface ProductOption {
   id: string;
@@ -113,7 +114,7 @@ function NewOrderPage() {
               >
                 {Object.values(OrderType).map((type) => (
                   <option key={type} value={type}>
-                    {type}
+                    {ORDER_TYPE_LABELS[type]}
                   </option>
                 ))}
               </select>

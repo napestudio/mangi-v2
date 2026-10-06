@@ -798,6 +798,7 @@ model Order {
   clientId          String?
   assignedTo        User?                  @relation(fields: [assignedToId], references: [id])
   assignedToId      String?
+  guestCount        Int?
   paymentMethod     PaymentMethod?
   paymentMethodExt  PaymentMethodExtended?
   subtotal          Decimal                @default(0) @db.Decimal(10, 2)

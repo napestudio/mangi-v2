@@ -75,13 +75,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const table = await this.tablesService.updateStatus(body.restaurantId, body.tableId, { status: body.status });
-      this.server.to(this.restaurantRoom(body.restaurantId)).emit("table:status_changed", {
-        id: table.id,
-        status: table.status,
-      });
+      this.emitTableStatusChanged(body.restaurantId, table.id, table.status as unknown as TableStatus);
     } catch {
       this.logger.warn(`Rejected table status update for unknown table ${body.tableId} in restaurant ${body.restaurantId}`);
     }
+  }
+
+  emitTableStatusChanged(restaurantId: string, tableId: string, status: TableStatus): void {
+    this.server.to(this.restaurantRoom(restaurantId)).emit("table:status_changed", { id: tableId, status });
   }
 
   emitOrderCreated(restaurantId: string, order: unknown): void {

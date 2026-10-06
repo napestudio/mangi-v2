@@ -24,7 +24,7 @@ interface FloorPlanCanvasProps {
   editable?: boolean;
 }
 
-const STATUS_STYLES: Record<TableStatus, string> = {
+export const STATUS_STYLES: Record<TableStatus, string> = {
   [TableStatus.EMPTY]: "border-emerald-400 bg-emerald-100 text-emerald-900",
   [TableStatus.OCCUPIED]: "border-red-400 bg-red-100 text-red-900",
   [TableStatus.RESERVED]: "border-amber-400 bg-amber-100 text-amber-900",

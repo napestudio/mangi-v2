@@ -1,4 +1,4 @@
-import { Module } from "@mangiar/shared";
+import { Module, type OrderStatus, type OrderType } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -7,6 +7,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { ORDER_STATUS_LABELS, ORDER_TYPE_LABELS } from "@/lib/labels";
 
 interface OrderInvoiceRef {
   id: string;
@@ -22,8 +23,8 @@ interface OrderItemRef {
 
 interface OrderListItem {
   id: string;
-  type: string;
-  status: string;
+  type: OrderType;
+  status: OrderStatus;
   total: string;
   needsInvoice: boolean;
   createdAt: string;
@@ -36,7 +37,7 @@ export const Route = createFileRoute("/_app/orders/")({
 });
 
 const columns: ColumnDef<OrderListItem>[] = [
-  { accessorKey: "type", header: "Tipo" },
+  { id: "type", header: "Tipo", cell: ({ row }) => ORDER_TYPE_LABELS[row.original.type] },
   {
     id: "createdAt",
     header: "Fecha",
@@ -47,7 +48,7 @@ const columns: ColumnDef<OrderListItem>[] = [
     header: "Total",
     cell: ({ row }) => `$${row.original.total}`,
   },
-  { accessorKey: "status", header: "Estado" },
+  { id: "status", header: "Estado", cell: ({ row }) => ORDER_STATUS_LABELS[row.original.status] },
 ];
 
 function OrdersPage() {
@@ -110,7 +111,11 @@ function OrdersPage() {
         className="flex-1"
       />
 
-      <SidePanel open={panel.isOpen} onClose={panel.close} title={panel.selected ? `Pedido ${panel.selected.type}` : ""}>
+      <SidePanel
+        open={panel.isOpen}
+        onClose={panel.close}
+        title={panel.selected ? `Pedido ${ORDER_TYPE_LABELS[panel.selected.type]}` : ""}
+      >
         {panel.selected && (
           <dl className="flex flex-col gap-4 text-sm">
             <div>
@@ -119,7 +124,7 @@ function OrdersPage() {
             </div>
             <div>
               <dt className="text-xs font-medium uppercase text-neutral-500">Estado</dt>
-              <dd className="text-neutral-900">{panel.selected.status}</dd>
+              <dd className="text-neutral-900">{ORDER_STATUS_LABELS[panel.selected.status]}</dd>
             </div>
             <div>
               <dt className="text-xs font-medium uppercase text-neutral-500">Total</dt>

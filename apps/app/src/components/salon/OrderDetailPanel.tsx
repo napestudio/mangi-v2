@@ -1,0 +1,286 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeftRight, Minus, Plus, Printer, RefreshCw, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { apiClient, type ApiEnvelope } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/currency";
+import type { FloorPlanTable } from "./FloorPlanCanvas";
+import { CloseTableCheckout } from "./CloseTableCheckout";
+import { MoveOrderTablePicker } from "./MoveOrderTablePicker";
+import { NoteEditor } from "./NoteEditor";
+import { ProductSearchCombobox } from "./ProductSearchCombobox";
+import type { OrderView, ProductOption, StagedItem } from "./types";
+
+interface OrderDetailPanelProps {
+  order: OrderView;
+  table: FloorPlanTable;
+  onOrderUpdated: (order: OrderView) => void;
+  onOrderClosed: (orderId: string) => void;
+  onOrderRemoved: (orderId: string) => void;
+  onOrderMoved: (orderId: string) => void;
+}
+
+export function OrderDetailPanel({
+  order,
+  table,
+  onOrderUpdated,
+  onOrderClosed,
+  onOrderRemoved,
+  onOrderMoved,
+}: OrderDetailPanelProps) {
+  const queryClient = useQueryClient();
+  const [staged, setStaged] = useState<StagedItem[]>([]);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [showMovePicker, setShowMovePicker] = useState(false);
+
+  const addItems = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<ApiEnvelope<OrderView>>(`/orders/${order.id}/items`, {
+        items: staged.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          notes: item.notes,
+          unitPrice: item.unitPrice,
+        })),
+      });
+      return data.data;
+    },
+    onSuccess: (updated) => {
+      onOrderUpdated(updated);
+      setStaged([]);
+    },
+  });
+
+  const removeItem = useMutation({
+    mutationFn: async (itemId: string) => {
+      const { data } = await apiClient.delete<ApiEnvelope<OrderView>>(`/orders/${order.id}/items/${itemId}`);
+      return data.data;
+    },
+    onSuccess: (updated) => onOrderUpdated(updated),
+  });
+
+  const removeEmptyOrder = useMutation({
+    mutationFn: async () => {
+      await apiClient.delete(`/orders/${order.id}`);
+    },
+    onSuccess: () => onOrderRemoved(order.id),
+  });
+
+  const reprintKitchenTicket = useMutation({
+    mutationFn: async () => {
+      if (order.items.length === 0) return;
+      await apiClient.patch(`/orders/${order.id}/send-to-kitchen`, {
+        itemIds: order.items.map((item) => item.id),
+      });
+    },
+  });
+
+  function addStaged(product: ProductOption, unitPrice: number) {
+    setStaged((prev) => {
+      const existing = prev.find((item) => item.productId === product.id);
+      if (existing) {
+        return prev.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item));
+      }
+      return [...prev, { tempId: crypto.randomUUID(), productId: product.id, name: product.name, quantity: 1, unitPrice }];
+    });
+  }
+
+  function changeStagedQuantity(tempId: string, delta: number) {
+    setStaged((prev) =>
+      prev.map((item) => (item.tempId === tempId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item)),
+    );
+  }
+
+  function changeStagedPrice(tempId: string, unitPrice: number) {
+    setStaged((prev) => prev.map((item) => (item.tempId === tempId ? { ...item, unitPrice } : item)));
+  }
+
+  function changeStagedNotes(tempId: string, notes: string | undefined) {
+    setStaged((prev) => prev.map((item) => (item.tempId === tempId ? { ...item, notes } : item)));
+  }
+
+  function removeStaged(tempId: string) {
+    setStaged((prev) => prev.filter((item) => item.tempId !== tempId));
+  }
+
+  const stagedTotal = staged.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const hasConfirmedItems = order.items.length > 0;
+
+  if (showMovePicker) {
+    return (
+      <MoveOrderTablePicker
+        order={order}
+        currentTable={table}
+        onCancel={() => setShowMovePicker(false)}
+        onMoved={() => onOrderMoved(order.id)}
+      />
+    );
+  }
+
+  if (showCheckout) {
+    return (
+      <CloseTableCheckout order={order} onCancel={() => setShowCheckout(false)} onClosed={() => onOrderClosed(order.id)} />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-end gap-1">
+        <button
+          type="button"
+          onClick={() => void queryClient.invalidateQueries({ queryKey: ["orders", "active", table.id] })}
+          aria-label="Refrescar"
+          title="Refrescar"
+          className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => reprintKitchenTicket.mutate()}
+          disabled={!hasConfirmedItems || reprintKitchenTicket.isPending}
+          aria-label="Reimprimir comanda"
+          title="Reimprimir comanda"
+          className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Printer className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowMovePicker(true)}
+          aria-label="Mover a otra mesa"
+          title="Mover a otra mesa"
+          className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+        >
+          <ArrowLeftRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-xs font-medium uppercase text-neutral-500">Adicionar</p>
+        <ProductSearchCombobox onSelect={addStaged} />
+      </div>
+
+      {staged.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {staged.map((item) => (
+            <div key={item.tempId} className="rounded-md border border-neutral-200 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900">{item.name}</p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => changeStagedQuantity(item.tempId, -1)}
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => changeStagedQuantity(item.tempId, 1)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-neutral-500">$</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={item.unitPrice}
+                    onChange={(event) => changeStagedPrice(item.tempId, Number(event.target.value))}
+                    className="h-8 w-24 px-2 text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeStaged(item.tempId)}
+                  aria-label="Quitar"
+                  className="rounded-md p-1 text-red-600 hover:bg-red-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <NoteEditor value={item.notes} onChange={(notes) => changeStagedNotes(item.tempId, notes)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {staged.length > 0 && (
+        <div className="flex flex-col gap-3 border-t border-neutral-200 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-neutral-500">Total a confirmar:</span>
+            <span className="text-lg font-semibold text-neutral-900">{formatCurrency(stagedTotal)}</span>
+          </div>
+          {addItems.isError && <p className="text-sm text-red-600">No se pudieron agregar los productos.</p>}
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setStaged([])}>
+              Cancelar
+            </Button>
+            <Button type="button" className="flex-1" disabled={addItems.isPending} onClick={() => addItems.mutate()}>
+              Confirmar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {hasConfirmedItems && (
+        <div className="flex flex-col gap-3 border-t border-neutral-200 pt-3">
+          {order.items.map((item) => (
+            <div key={item.id} className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-neutral-900">{item.name}</p>
+                <p className="text-xs text-neutral-500">Cantidad: {item.quantity}</p>
+                {item.notes && <p className="text-xs italic text-neutral-500">Nota: {item.notes}</p>}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-sm font-medium text-neutral-900">{formatCurrency(Number(item.totalPrice))}</span>
+                <button
+                  type="button"
+                  onClick={() => removeItem.mutate(item.id)}
+                  aria-label="Eliminar producto"
+                  className="rounded-md p-1 text-red-600 hover:bg-red-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
+            <span className="text-sm font-semibold text-neutral-900">Total:</span>
+            <span className="text-lg font-semibold text-neutral-900">{formatCurrency(Number(order.total))}</span>
+          </div>
+        </div>
+      )}
+
+      {staged.length === 0 && (
+        <div className="flex flex-col gap-2 border-t border-neutral-200 pt-3">
+          {removeEmptyOrder.isError && <p className="text-sm text-red-600">No se pudo eliminar el pedido.</p>}
+          {!hasConfirmedItems ? (
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-12 text-base"
+              disabled={removeEmptyOrder.isPending}
+              onClick={() => removeEmptyOrder.mutate()}
+            >
+              Eliminar Orden Vacia
+            </Button>
+          ) : (
+            <Button type="button" className="h-12 text-base" onClick={() => setShowCheckout(true)}>
+              Cerrar Mesa
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

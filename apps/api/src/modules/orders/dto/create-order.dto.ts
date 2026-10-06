@@ -40,6 +40,7 @@ export class CreateOrderDto {
   @IsOptional() @IsString() tableId?: string;
   @IsOptional() @IsString() clientId?: string;
   @IsOptional() @IsString() assignedToId?: string;
+  @IsOptional() @IsInt() @Min(1) guestCount?: number;
 
   @IsArray()
   @ValidateNested({ each: true })

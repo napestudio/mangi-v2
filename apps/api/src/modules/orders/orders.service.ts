@@ -1,18 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Module } from "@mangiar/shared";
+import { Module, TableStatus } from "@mangiar/shared";
 import type {
   DiscountType as PrismaDiscountType,
-  Order as PrismaOrder,
   OrderStatus as PrismaOrderStatus,
   OrderType as PrismaOrderType,
   PaymentMethodExtended as PrismaPaymentMethodExtended,
+  Prisma,
 } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PrintJobsService } from "../printing/print-jobs.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import { EventsGateway } from "../websockets/events.gateway";
+import type { AddOrderItemsDto } from "./dto/add-order-items.dto";
 import type { CheckoutOrderDto } from "./dto/checkout-order.dto";
 import type { CreateOrderDto } from "./dto/create-order.dto";
+import type { ListOrdersDto } from "./dto/list-orders.dto";
+import type { MoveOrderTableDto } from "./dto/move-order-table.dto";
 import type { SendToKitchenDto } from "./dto/send-to-kitchen.dto";
 import type { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 
@@ -20,6 +23,10 @@ const ORDER_INCLUDE = {
   items: { include: { modifiers: true } },
   invoices: { select: { id: true, status: true }, orderBy: { createdAt: "desc" as const } },
 } as const;
+
+type PrismaOrder = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE }>;
+
+const OPEN_ORDER_STATUSES: PrismaOrderStatus[] = ["PENDING", "IN_PROGRESS"];
 
 type PriceTypeForOrder = "DINE_IN" | "TAKE_AWAY" | "DELIVERY";
 
@@ -38,9 +45,13 @@ export class OrdersService {
     private readonly printJobsService: PrintJobsService,
   ) {}
 
-  findAll(restaurantId: string): Promise<PrismaOrder[]> {
+  findAll(restaurantId: string, query: ListOrdersDto = {}): Promise<PrismaOrder[]> {
     return this.prisma.order.findMany({
-      where: { restaurantId },
+      where: {
+        restaurantId,
+        ...(query.tableId ? { tableId: query.tableId } : {}),
+        ...(query.status?.length ? { status: { in: query.status as unknown as PrismaOrderStatus[] } } : {}),
+      },
       include: ORDER_INCLUDE,
       orderBy: { createdAt: "desc" },
     });
@@ -75,10 +86,12 @@ export class OrdersService {
     }
 
     const productIds = dto.items.map((item) => item.productId);
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, restaurantId },
-      include: { prices: true },
-    });
+    const products = productIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: productIds }, restaurantId },
+          include: { prices: true },
+        })
+      : [];
     if (products.length !== new Set(productIds).size) {
       throw new BadRequestException("One or more products were not found");
     }
@@ -134,42 +147,66 @@ export class OrdersService {
       };
     });
 
-    const discountAmount = this.computeDiscount(
+    const { discountAmount, total: preDeliveryTotal } = this.computeTotals(
       subtotal,
       dto.discountType as unknown as PrismaDiscountType | undefined,
       dto.discountValue,
+      0,
     );
-
     const deliveryFee = orderType === "DELIVERY" ? await this.resolveDeliveryFee(restaurantId, dto.deliveryZoneId) : 0;
-    const total = Math.max(subtotal - discountAmount, 0) + deliveryFee;
+    const total = preDeliveryTotal + deliveryFee;
 
-    const order = await this.prisma.order.create({
-      data: {
-        restaurantId,
-        type: orderType,
-        tableId: dto.tableId,
-        clientId: dto.clientId,
-        assignedToId,
-        notes: dto.notes,
-        discountType: dto.discountType as unknown as PrismaDiscountType | undefined,
-        discountValue: dto.discountValue,
-        discountAmount,
-        subtotal,
-        deliveryFee,
-        total,
-        needsInvoice: dto.needsInvoice ?? false,
-        deliveryAddress: dto.deliveryAddress,
-        deliveryCity: dto.deliveryCity,
-        deliveryPhone: dto.deliveryPhone,
-        deliveryName: dto.deliveryName,
-        deliveryZoneId: orderType === "DELIVERY" ? dto.deliveryZoneId : undefined,
-        scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
-        items: { create: itemsData },
-      },
-      include: ORDER_INCLUDE,
+    const isDineInWithTable = orderType === "DINE_IN" && !!dto.tableId;
+
+    const order = await this.prisma.$transaction(async (tx) => {
+      if (isDineInWithTable) {
+        const table = await tx.table.findFirst({ where: { id: dto.tableId, restaurantId } });
+        if (!table) {
+          throw new BadRequestException("Table not found");
+        }
+      }
+
+      const created = await tx.order.create({
+        data: {
+          restaurantId,
+          type: orderType,
+          tableId: dto.tableId,
+          clientId: dto.clientId,
+          assignedToId,
+          guestCount: dto.guestCount,
+          notes: dto.notes,
+          discountType: dto.discountType as unknown as PrismaDiscountType | undefined,
+          discountValue: dto.discountValue,
+          discountAmount,
+          subtotal,
+          deliveryFee,
+          total,
+          needsInvoice: dto.needsInvoice ?? false,
+          deliveryAddress: dto.deliveryAddress,
+          deliveryCity: dto.deliveryCity,
+          deliveryPhone: dto.deliveryPhone,
+          deliveryName: dto.deliveryName,
+          deliveryZoneId: orderType === "DELIVERY" ? dto.deliveryZoneId : undefined,
+          scheduledFor: dto.scheduledFor ? new Date(dto.scheduledFor) : undefined,
+          items: { create: itemsData },
+        },
+        include: ORDER_INCLUDE,
+      });
+
+      if (isDineInWithTable) {
+        await tx.table.updateMany({
+          where: { id: dto.tableId, restaurantId, status: { not: "OCCUPIED" } },
+          data: { status: "OCCUPIED" },
+        });
+      }
+
+      return created;
     });
 
     this.eventsGateway.emitOrderCreated(restaurantId, order);
+    if (isDineInWithTable && dto.tableId) {
+      this.eventsGateway.emitTableStatusChanged(restaurantId, dto.tableId, TableStatus.OCCUPIED);
+    }
     return order;
   }
 
@@ -178,6 +215,7 @@ export class OrdersService {
     const order = await this.prisma.order.update({
       where: { id },
       data: { status: dto.status as unknown as PrismaOrderStatus },
+      include: ORDER_INCLUDE,
     });
     this.eventsGateway.emitOrderUpdated(restaurantId, order.id, order.status);
     return order;
@@ -193,12 +231,26 @@ export class OrdersService {
     const cashActive = activeModules.includes(Module.CASH);
 
     if (!cashActive) {
-      const closed = await this.prisma.order.update({
-        where: { id },
-        data: { status: "COMPLETED", closedAt: new Date(), paymentMethodExt: dto.paymentMethodExt as unknown as PrismaPaymentMethodExtended },
-        include: ORDER_INCLUDE,
+      const { closed, tableFlippedEmpty } = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.order.update({
+          where: { id },
+          data: {
+            status: "COMPLETED",
+            closedAt: new Date(),
+            paymentMethodExt: dto.paymentMethodExt as unknown as PrismaPaymentMethodExtended,
+          },
+          include: ORDER_INCLUDE,
+        });
+        const tableFlippedEmpty = order.tableId
+          ? await this.flipTableEmptyIfNoSiblings(tx, restaurantId, order.tableId, id)
+          : false;
+        return { closed: updated, tableFlippedEmpty };
       });
+
       this.eventsGateway.emitOrderUpdated(restaurantId, closed.id, closed.status);
+      if (tableFlippedEmpty && order.tableId) {
+        this.eventsGateway.emitTableStatusChanged(restaurantId, order.tableId, TableStatus.EMPTY);
+      }
       await this.printJobsService.enqueueReceipt(restaurantId, closed.id);
       return closed;
     }
@@ -217,7 +269,7 @@ export class OrdersService {
       throw new BadRequestException("Cannot checkout against a closed cash session");
     }
 
-    const closed = await this.prisma.$transaction(async (tx) => {
+    const { closed, tableFlippedEmpty } = await this.prisma.$transaction(async (tx) => {
       await tx.cashMovement.create({
         data: {
           sessionId: session.id,
@@ -229,14 +281,27 @@ export class OrdersService {
         },
       });
 
-      return tx.order.update({
+      const updated = await tx.order.update({
         where: { id },
-        data: { status: "COMPLETED", closedAt: new Date(), paymentMethodExt: dto.paymentMethodExt as unknown as PrismaPaymentMethodExtended },
+        data: {
+          status: "COMPLETED",
+          closedAt: new Date(),
+          paymentMethodExt: dto.paymentMethodExt as unknown as PrismaPaymentMethodExtended,
+        },
         include: ORDER_INCLUDE,
       });
+
+      const tableFlippedEmpty = order.tableId
+        ? await this.flipTableEmptyIfNoSiblings(tx, restaurantId, order.tableId, id)
+        : false;
+
+      return { closed: updated, tableFlippedEmpty };
     });
 
     this.eventsGateway.emitOrderUpdated(restaurantId, closed.id, closed.status);
+    if (tableFlippedEmpty && order.tableId) {
+      this.eventsGateway.emitTableStatusChanged(restaurantId, order.tableId, TableStatus.EMPTY);
+    }
     await this.printJobsService.enqueueReceipt(restaurantId, closed.id);
     return closed;
   }
@@ -248,6 +313,234 @@ export class OrdersService {
       data: { sentToKitchen: true },
     });
     await this.printJobsService.enqueueKitchenTickets(restaurantId, orderId, dto.itemIds);
+  }
+
+  async addItems(restaurantId: string, orderId: string, dto: AddOrderItemsDto): Promise<PrismaOrder> {
+    const order = await this.findOne(restaurantId, orderId);
+    if (order.status === "COMPLETED" || order.status === "CANCELED") {
+      throw new BadRequestException(`No se pueden agregar productos a un pedido ${order.status.toLowerCase()}`);
+    }
+
+    const priceType = toPriceType(order.type);
+    const productIds = dto.items.map((item) => item.productId);
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds }, restaurantId },
+      include: { prices: true },
+    });
+    if (products.length !== new Set(productIds).size) {
+      throw new BadRequestException("One or more products were not found");
+    }
+
+    const { result, newItemIds } = await this.prisma.$transaction(async (tx) => {
+      const newItemIds: string[] = [];
+      for (const item of dto.items) {
+        const product = products.find((candidate) => candidate.id === item.productId);
+        if (!product) {
+          throw new BadRequestException(`Product ${item.productId} not found`);
+        }
+        const priceEntry = product.prices.find((price) => price.type === priceType);
+        if (!priceEntry) {
+          throw new BadRequestException(`Product ${product.name} has no price configured for ${priceType}`);
+        }
+        const unitPrice = item.unitPrice ?? Number(priceEntry.price);
+        const totalPrice = unitPrice * item.quantity;
+
+        const created = await tx.orderItem.create({
+          data: {
+            orderId,
+            productId: product.id,
+            name: product.name,
+            quantity: item.quantity,
+            unitPrice,
+            totalPrice,
+            notes: item.notes,
+            sentToKitchen: true,
+          },
+        });
+        newItemIds.push(created.id);
+      }
+
+      const allItems = await tx.orderItem.findMany({ where: { orderId } });
+      const subtotal = allItems.reduce((sum, orderItem) => sum + Number(orderItem.totalPrice), 0);
+      const { discountAmount, total: preDeliveryTotal } = this.computeTotals(
+        subtotal,
+        order.discountType,
+        order.discountValue ? Number(order.discountValue) : undefined,
+        0,
+      );
+      const total = preDeliveryTotal + Number(order.deliveryFee);
+
+      const result = await tx.order.update({
+        where: { id: orderId },
+        data: { subtotal, discountAmount, total },
+        include: ORDER_INCLUDE,
+      });
+
+      return { result, newItemIds };
+    });
+
+    await this.printJobsService.enqueueKitchenTickets(restaurantId, orderId, newItemIds);
+    this.eventsGateway.emitOrderUpdated(restaurantId, orderId, result.status);
+    return result;
+  }
+
+  async removeItem(restaurantId: string, orderId: string, itemId: string): Promise<PrismaOrder> {
+    const order = await this.findOne(restaurantId, orderId);
+    if (order.status === "COMPLETED" || order.status === "CANCELED") {
+      throw new BadRequestException(`No se pueden editar los productos de un pedido ${order.status.toLowerCase()}`);
+    }
+    const item = order.items.find((candidate) => candidate.id === itemId);
+    if (!item) {
+      throw new NotFoundException("Order item not found");
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.orderItem.delete({ where: { id: itemId } });
+
+      const remaining = await tx.orderItem.findMany({ where: { orderId } });
+      const subtotal = remaining.reduce((sum, orderItem) => sum + Number(orderItem.totalPrice), 0);
+      const { discountAmount, total: preDeliveryTotal } = this.computeTotals(
+        subtotal,
+        order.discountType,
+        order.discountValue ? Number(order.discountValue) : undefined,
+        0,
+      );
+      const total = preDeliveryTotal + Number(order.deliveryFee);
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: { subtotal, discountAmount, total },
+        include: ORDER_INCLUDE,
+      });
+    });
+
+    this.eventsGateway.emitOrderUpdated(restaurantId, orderId, result.status);
+    return result;
+  }
+
+  async removeEmpty(restaurantId: string, orderId: string): Promise<void> {
+    const order = await this.findOne(restaurantId, orderId);
+    if (order.status === "COMPLETED" || order.status === "CANCELED") {
+      throw new BadRequestException("No se puede eliminar un pedido ya cerrado");
+    }
+    if (order.items.length > 0) {
+      throw new BadRequestException("Solo se pueden eliminar pedidos sin productos");
+    }
+
+    const tableFlippedEmpty = await this.prisma.$transaction(async (tx) => {
+      await tx.order.delete({ where: { id: orderId } });
+      if (!order.tableId) return false;
+
+      await this.lockTableRow(tx, restaurantId, order.tableId);
+
+      const stillActive = await this.hasOtherActiveOrders(tx, restaurantId, order.tableId, orderId);
+      if (stillActive) return false;
+
+      const result = await tx.table.updateMany({
+        where: { id: order.tableId, restaurantId, status: "OCCUPIED" },
+        data: { status: "EMPTY" },
+      });
+      return result.count > 0;
+    });
+
+    this.eventsGateway.emitOrderDeleted(restaurantId, orderId);
+    if (tableFlippedEmpty && order.tableId) {
+      this.eventsGateway.emitTableStatusChanged(restaurantId, order.tableId, TableStatus.EMPTY);
+    }
+  }
+
+  async moveToTable(restaurantId: string, orderId: string, dto: MoveOrderTableDto): Promise<PrismaOrder> {
+    const order = await this.findOne(restaurantId, orderId);
+    if (order.status === "COMPLETED" || order.status === "CANCELED") {
+      throw new BadRequestException(`No se puede mover un pedido ${order.status.toLowerCase()}`);
+    }
+    if (order.type !== "DINE_IN") {
+      throw new BadRequestException("Solo se pueden mover pedidos de mesa");
+    }
+    if (order.tableId === dto.tableId) {
+      throw new BadRequestException("El pedido ya está en esa mesa");
+    }
+
+    const { result, tableFlippedEmpty } = await this.prisma.$transaction(async (tx) => {
+      const destination = await tx.table.findFirst({ where: { id: dto.tableId, restaurantId } });
+      if (!destination) {
+        throw new BadRequestException("Table not found");
+      }
+
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { tableId: dto.tableId },
+        include: ORDER_INCLUDE,
+      });
+
+      await tx.table.updateMany({
+        where: { id: dto.tableId, restaurantId, status: { not: "OCCUPIED" } },
+        data: { status: "OCCUPIED" },
+      });
+
+      const tableFlippedEmpty = order.tableId
+        ? await this.flipTableEmptyIfNoSiblings(tx, restaurantId, order.tableId, orderId)
+        : false;
+
+      return { result: updated, tableFlippedEmpty };
+    });
+
+    this.eventsGateway.emitOrderUpdated(restaurantId, result.id, result.status);
+    this.eventsGateway.emitTableStatusChanged(restaurantId, dto.tableId, TableStatus.OCCUPIED);
+    if (tableFlippedEmpty && order.tableId) {
+      this.eventsGateway.emitTableStatusChanged(restaurantId, order.tableId, TableStatus.EMPTY);
+    }
+    return result;
+  }
+
+  /**
+   * Locks the table row for the rest of the transaction so two concurrent "is this the
+   * last active order?" checks on the same table can't both read "a sibling is still open"
+   * and both skip freeing the table. Must be called before counting siblings, never after.
+   */
+  private async lockTableRow(tx: Prisma.TransactionClient, restaurantId: string, tableId: string): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM "Table" WHERE id = ${tableId} AND "restaurantId" = ${restaurantId} FOR UPDATE`;
+  }
+
+  private async hasOtherActiveOrders(
+    tx: Prisma.TransactionClient,
+    restaurantId: string,
+    tableId: string,
+    excludeOrderId: string,
+  ): Promise<boolean> {
+    const count = await tx.order.count({
+      where: { tableId, restaurantId, status: { in: OPEN_ORDER_STATUSES }, id: { not: excludeOrderId } },
+    });
+    return count > 0;
+  }
+
+  private async flipTableEmptyIfNoSiblings(
+    tx: Prisma.TransactionClient,
+    restaurantId: string,
+    tableId: string,
+    excludeOrderId: string,
+  ): Promise<boolean> {
+    await this.lockTableRow(tx, restaurantId, tableId);
+
+    const stillActive = await this.hasOtherActiveOrders(tx, restaurantId, tableId, excludeOrderId);
+    if (stillActive) return false;
+
+    const result = await tx.table.updateMany({
+      where: { id: tableId, restaurantId, status: { not: "EMPTY" } },
+      data: { status: "EMPTY" },
+    });
+    return result.count > 0;
+  }
+
+  private computeTotals(
+    subtotal: number,
+    discountType: PrismaDiscountType | null | undefined,
+    discountValue: number | null | undefined,
+    deliveryFee: number,
+  ): { discountAmount: number; total: number } {
+    const discountAmount = this.computeDiscount(subtotal, discountType ?? undefined, discountValue ?? undefined);
+    const total = Math.max(subtotal - discountAmount, 0) + deliveryFee;
+    return { discountAmount, total };
   }
 
   private computeDiscount(subtotal: number, type: PrismaDiscountType | undefined, value: number | undefined): number {

@@ -4,7 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { ModuleGuard } from "@/components/guards/ModuleGuard";
+import { ActiveOrderPanel } from "@/components/salon/ActiveOrderPanel";
 import { FloorPlanCanvas, type FloorPlanTable } from "@/components/salon/FloorPlanCanvas";
+import { OpenTableForm } from "@/components/salon/OpenTableForm";
+import { patchTableStatus } from "@/components/salon/tableCache";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
@@ -18,14 +21,6 @@ interface SectorItem {
   canvasWidth: number | null;
   canvasHeight: number | null;
 }
-
-const STATUS_LABELS: Record<TableStatus, string> = {
-  [TableStatus.EMPTY]: "Libre",
-  [TableStatus.OCCUPIED]: "Ocupada",
-  [TableStatus.RESERVED]: "Reservada",
-  [TableStatus.CLEANING]: "Limpieza",
-  [TableStatus.PAYING]: "Pagando",
-};
 
 export const Route = createFileRoute("/_app/salon/")({
   component: () => (
@@ -72,9 +67,7 @@ function SalonPage() {
     const socket = connectSocket(restaurant.id);
 
     const handleStatusChanged = (payload: { id: string; status: TableStatus }) => {
-      queryClient.setQueryData<FloorPlanTable[]>(["tables", selectedSectorId], (prev) =>
-        prev?.map((table) => (table.id === payload.id ? { ...table, status: payload.status } : table)),
-      );
+      patchTableStatus(queryClient, payload.id, payload.status);
     };
 
     socket.on("table:status_changed", handleStatusChanged);
@@ -84,12 +77,8 @@ function SalonPage() {
     };
   }, [restaurant?.id, selectedSectorId, queryClient]);
 
-  const setTableStatus = (tableId: string, status: TableStatus) => {
-    if (!restaurant?.id) return;
-    connectSocket(restaurant.id).emit("table:update_status", { restaurantId: restaurant.id, tableId, status });
-  };
-
   const selectedSector = sectors?.find((sector) => sector.id === selectedSectorId);
+  const liveSelected = panel.selected ? (tables?.find((table) => table.id === panel.selected!.id) ?? panel.selected) : null;
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -142,35 +131,13 @@ function SalonPage() {
         </p>
       )}
 
-      <SidePanel open={panel.isOpen} onClose={panel.close} title={panel.selected ? `Mesa ${panel.selected.number}` : ""}>
-        {panel.selected && (
-          <div className="flex flex-col gap-6">
-            <div>
-              <p className="text-xs font-medium uppercase text-neutral-500">Capacidad</p>
-              <p className="text-sm text-neutral-900">{panel.selected.capacity} personas</p>
-            </div>
-
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase text-neutral-500">Estado</p>
-              <div className="flex flex-wrap gap-2">
-                {Object.values(TableStatus).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => setTableStatus(panel.selected!.id, status)}
-                    className={cn(
-                      "rounded-md border px-3 py-1.5 text-sm",
-                      status === panel.selected!.status
-                        ? "border-neutral-900 bg-neutral-900 text-white"
-                        : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100",
-                    )}
-                  >
-                    {STATUS_LABELS[status]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+      <SidePanel open={panel.isOpen} onClose={panel.close} title={liveSelected ? `Mesa ${liveSelected.number}` : ""}>
+        {liveSelected && selectedSectorId && (
+          liveSelected.status === TableStatus.EMPTY ? (
+            <OpenTableForm table={liveSelected} />
+          ) : (
+            <ActiveOrderPanel table={liveSelected} onClosePanel={panel.close} />
+          )
         )}
       </SidePanel>
     </div>

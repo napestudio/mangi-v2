@@ -22,7 +22,11 @@ export class BusinessHoursService {
   constructor(private readonly prisma: PrismaService) {}
 
   findAll(restaurantId: string): Promise<BusinessHoursRow[]> {
-    return this.prisma.businessHours.findMany({ where: { restaurantId }, orderBy: { dayOfWeek: "asc" } });
+    return this.prisma.businessHours.findMany({
+      where: { restaurantId },
+      orderBy: { dayOfWeek: "asc" },
+      select: { dayOfWeek: true, isOpen: true, openTime: true, closeTime: true, label: true },
+    });
   }
 
   async upsert(restaurantId: string, dto: UpsertBusinessHoursDto): Promise<BusinessHoursRow[]> {
