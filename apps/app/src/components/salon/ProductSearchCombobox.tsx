@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 import { formatPrice } from "@/lib/currency";
+import { isProductAvailable } from "@/lib/stock";
 import { cn } from "@/lib/utils";
 import type { ProductOption } from "./types";
 
@@ -36,6 +37,7 @@ export function ProductSearchCombobox({ priceType, onSelect, onConfirm }: Produc
   }, [products, query, priceType]);
 
   function selectMatch(product: ProductOption) {
+    if (!isProductAvailable(product, 1)) return;
     const price = product.prices.find((candidate) => candidate.type === priceType)!;
     onSelect(product, Number(price.price));
     setQuery("");
@@ -53,8 +55,9 @@ export function ProductSearchCombobox({ priceType, onSelect, onConfirm }: Produc
       setHighlightedIndex((index) => Math.max(index - 1, 0));
     } else if (event.key === "Enter") {
       event.preventDefault();
-      if (matches.length > 0) {
-        selectMatch(matches[Math.min(highlightedIndex, matches.length - 1)]);
+      const highlighted = matches[Math.min(highlightedIndex, matches.length - 1)];
+      if (highlighted) {
+        selectMatch(highlighted);
       } else {
         onConfirm?.();
       }
@@ -76,19 +79,26 @@ export function ProductSearchCombobox({ priceType, onSelect, onConfirm }: Produc
         <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg">
           {matches.map((product, index) => {
             const price = product.prices.find((candidate) => candidate.type === priceType)!;
+            const available = isProductAvailable(product, 1);
             return (
               <button
                 key={product.id}
                 type="button"
+                disabled={!available}
                 onClick={() => selectMatch(product)}
                 onMouseEnter={() => setHighlightedIndex(index)}
                 className={cn(
                   "flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-neutral-50",
                   index === highlightedIndex && "bg-neutral-100",
+                  !available && "cursor-not-allowed opacity-40 hover:bg-transparent",
                 )}
               >
                 <span className="font-medium text-neutral-900">{product.name}</span>
-                <span className="text-neutral-500">{formatPrice(Number(price.price))}</span>
+                {available ? (
+                  <span className="text-neutral-500">{formatPrice(Number(price.price))}</span>
+                ) : (
+                  <span className="text-xs font-medium text-red-600">Sin stock</span>
+                )}
               </button>
             );
           })}

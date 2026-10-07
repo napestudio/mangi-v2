@@ -12,7 +12,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { ProductTag, UnitType, VolumeUnit, WeightUnit } from "@mangiar/shared";
-import { ProductPriceDto } from "./create-product.dto";
+import { ProductComponentDto, ProductPriceDto } from "./create-product.dto";
 
 export class UpdateProductDto {
   @IsOptional() @IsString() name?: string;
@@ -41,4 +41,10 @@ export class UpdateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductPriceDto)
   prices?: ProductPriceDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductComponentDto)
+  components?: ProductComponentDto[];
 }

@@ -17,6 +17,7 @@ import type {
   Prisma,
 } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StockService } from '../inventory/stock.service';
 import { PrintJobsService } from '../printing/print-jobs.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { EventsGateway } from '../websockets/events.gateway';
@@ -40,6 +41,13 @@ const ORDER_INCLUDE = {
 
 type PrismaOrder = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE }>;
 type OrderWithCode = Omit<PrismaOrder, 'restaurant'> & { code: string };
+
+/** Combo components needed to resolve stock impact — mirrors StockService's view of a product. */
+const PRODUCT_COMBO_INCLUDE = {
+  comboComponents: { include: { component: { select: { trackStock: true } } } },
+} as const;
+
+type ProductWithComboStock = Prisma.ProductGetPayload<{ include: typeof PRODUCT_COMBO_INCLUDE }>;
 
 /** "YYYY-MM-DD" of `now` in the restaurant's own timezone, used as the daily reset key for order codes. */
 function restaurantDayKey(timezone: string, now: Date): Date {
@@ -69,6 +77,7 @@ export class OrdersService {
     private readonly eventsGateway: EventsGateway,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly printJobsService: PrintJobsService,
+    private readonly stockService: StockService,
   ) {}
 
   /** Attaches the human-friendly `code` (ej. "MGDI-37") and drops the `restaurant` join used only to build it. */
@@ -145,7 +154,7 @@ export class OrdersService {
     const products = productIds.length
       ? await this.prisma.product.findMany({
           where: { id: { in: productIds }, restaurantId },
-          include: { prices: true },
+          include: { prices: true, ...PRODUCT_COMBO_INCLUDE },
         })
       : [];
     if (products.length !== new Set(productIds).size) {
@@ -219,6 +228,7 @@ export class OrdersService {
         totalPrice,
         notes: item.notes,
         sentToKitchen: true,
+        stockDeducted: this.computesStockDeducted(product),
         modifiers: { create: modifiers },
       };
     });
@@ -293,6 +303,22 @@ export class OrdersService {
         include: ORDER_INCLUDE,
       });
 
+      for (const item of dto.items) {
+        const product = products.find((candidate) => candidate.id === item.productId)!;
+        if (this.computesStockDeducted(product)) {
+          await this.applyStockForOrderItem(
+            tx,
+            restaurantId,
+            currentUserId,
+            product,
+            item.quantity,
+            -1,
+            'Venta',
+            created.id,
+          );
+        }
+      }
+
       if (isDineInWithTable) {
         await tx.table.updateMany({
           where: { id: dto.tableId, restaurantId, status: { not: 'OCCUPIED' } },
@@ -322,17 +348,63 @@ export class OrdersService {
 
   async updateStatus(
     restaurantId: string,
+    currentUserId: string,
     id: string,
     dto: UpdateOrderStatusDto,
   ): Promise<OrderWithCode> {
-    await this.findOne(restaurantId, id);
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: { status: dto.status as unknown as PrismaOrderStatus },
-      include: ORDER_INCLUDE,
+    const order = await this.findOne(restaurantId, id);
+    const cancelling =
+      (dto.status as unknown as PrismaOrderStatus) === 'CANCELED' && order.status !== 'CANCELED';
+
+    const { updated, tableFlippedEmpty } = await this.prisma.$transaction(async (tx) => {
+      if (cancelling && dto.restoreStock) {
+        const stockItems = order.items.filter((item) => item.stockDeducted);
+        if (stockItems.length > 0) {
+          const products = await tx.product.findMany({
+            where: { id: { in: [...new Set(stockItems.map((item) => item.productId))] }, restaurantId },
+            include: PRODUCT_COMBO_INCLUDE,
+          });
+          for (const item of stockItems) {
+            const product = products.find((candidate) => candidate.id === item.productId);
+            if (product) {
+              await this.applyStockForOrderItem(
+                tx,
+                restaurantId,
+                currentUserId,
+                product,
+                item.quantity,
+                1,
+                'Restitución por cancelación de pedido',
+                id,
+              );
+            }
+          }
+        }
+      }
+
+      const updatedOrder = await tx.order.update({
+        where: { id },
+        data: {
+          status: dto.status as unknown as PrismaOrderStatus,
+          cancelledAt: cancelling ? new Date() : undefined,
+          cancelReason: cancelling ? dto.cancelReason : undefined,
+        },
+        include: ORDER_INCLUDE,
+      });
+
+      const tableFlippedEmpty =
+        cancelling && order.tableId
+          ? await this.flipTableEmptyIfNoSiblings(tx, restaurantId, order.tableId, id)
+          : false;
+
+      return { updated: updatedOrder, tableFlippedEmpty };
     });
-    this.eventsGateway.emitOrderUpdated(restaurantId, order.id, order.status);
-    return this.withCode(order);
+
+    this.eventsGateway.emitOrderUpdated(restaurantId, updated.id, updated.status);
+    if (tableFlippedEmpty && order.tableId) {
+      this.eventsGateway.emitTableStatusChanged(restaurantId, order.tableId, TableStatus.EMPTY);
+    }
+    return this.withCode(updated);
   }
 
   async checkout(
@@ -480,6 +552,7 @@ export class OrdersService {
 
   async addItems(
     restaurantId: string,
+    currentUserId: string,
     orderId: string,
     dto: AddOrderItemsDto,
   ): Promise<OrderWithCode> {
@@ -494,7 +567,7 @@ export class OrdersService {
     const productIds = dto.items.map((item) => item.productId);
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds }, restaurantId },
-      include: { prices: true },
+      include: { prices: true, ...PRODUCT_COMBO_INCLUDE },
     });
     if (products.length !== new Set(productIds).size) {
       throw new BadRequestException('One or more products were not found');
@@ -522,6 +595,7 @@ export class OrdersService {
           }
           const unitPrice = item.unitPrice ?? Number(priceEntry.price);
           const totalPrice = unitPrice * item.quantity;
+          const stockDeducted = this.computesStockDeducted(product);
 
           const created = await tx.orderItem.create({
             data: {
@@ -533,9 +607,23 @@ export class OrdersService {
               totalPrice,
               notes: item.notes,
               sentToKitchen: true,
+              stockDeducted,
             },
           });
           newItemIds.push(created.id);
+
+          if (stockDeducted) {
+            await this.applyStockForOrderItem(
+              tx,
+              restaurantId,
+              currentUserId,
+              product,
+              item.quantity,
+              -1,
+              'Venta',
+              orderId,
+            );
+          }
         }
 
         const allItems = await tx.orderItem.findMany({ where: { orderId } });
@@ -572,8 +660,10 @@ export class OrdersService {
 
   async removeItem(
     restaurantId: string,
+    currentUserId: string,
     orderId: string,
     itemId: string,
+    restoreStock: boolean,
   ): Promise<OrderWithCode> {
     const order = await this.findOne(restaurantId, orderId);
     if (order.status === 'COMPLETED' || order.status === 'CANCELED') {
@@ -587,6 +677,25 @@ export class OrdersService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      if (restoreStock && item.stockDeducted) {
+        const product = await tx.product.findFirst({
+          where: { id: item.productId, restaurantId },
+          include: PRODUCT_COMBO_INCLUDE,
+        });
+        if (product) {
+          await this.applyStockForOrderItem(
+            tx,
+            restaurantId,
+            currentUserId,
+            product,
+            item.quantity,
+            1,
+            'Restitución por eliminación de item',
+            orderId,
+          );
+        }
+      }
+
       await tx.orderItem.delete({ where: { id: itemId } });
 
       const remaining = await tx.orderItem.findMany({ where: { orderId } });
@@ -775,6 +884,53 @@ export class OrdersService {
       data: { status: 'EMPTY' },
     });
     return result.count > 0;
+  }
+
+  /** direction -1 = venta (descuenta), +1 = restitución. El stock propio del producto/combo y el de
+   * cada componente trackeado se chequean/ajustan de forma independiente; si cualquier `adjust()`
+   * manda un producto a negativo, tira y toda la tx del caller hace rollback. El loop de componentes
+   * es secuencial (no Promise.all): llamadas dentro de la misma tx contra el mismo producto deben ver
+   * las escrituras previas para acumular bien. */
+  private async applyStockForOrderItem(
+    tx: Prisma.TransactionClient,
+    restaurantId: string,
+    currentUserId: string,
+    product: ProductWithComboStock & { trackStock: boolean },
+    quantity: number,
+    direction: 1 | -1,
+    reason: string,
+    reference: string,
+  ): Promise<void> {
+    if (product.trackStock) {
+      await this.stockService.adjust(
+        restaurantId,
+        currentUserId,
+        { productId: product.id, delta: direction * quantity, reason, reference },
+        tx,
+      );
+    }
+    for (const pc of product.comboComponents) {
+      if (pc.component.trackStock) {
+        await this.stockService.adjust(
+          restaurantId,
+          currentUserId,
+          {
+            productId: pc.componentId,
+            delta: direction * Number(pc.quantity) * quantity,
+            reason: `${reason} (componente de combo)`,
+            reference,
+          },
+          tx,
+        );
+      }
+    }
+  }
+
+  private computesStockDeducted(product: {
+    trackStock: boolean;
+    comboComponents: { component: { trackStock: boolean } }[];
+  }): boolean {
+    return product.trackStock || product.comboComponents.some((c) => c.component.trackStock);
   }
 
   private computeTotals(

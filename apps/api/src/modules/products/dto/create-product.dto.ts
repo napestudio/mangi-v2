@@ -6,6 +6,7 @@ import {
   IsInt,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   IsUrl,
   Min,
@@ -22,6 +23,15 @@ export class ProductPriceDto {
   price!: number;
 }
 
+export class ProductComponentDto {
+  @IsString()
+  componentId!: string;
+
+  @IsNumber()
+  @IsPositive()
+  quantity!: number;
+}
+
 export class CreateProductDto {
   @IsString()
   name!: string;
@@ -36,6 +46,7 @@ export class CreateProductDto {
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsBoolean() isCombo?: boolean;
   @IsOptional() @IsBoolean() trackStock?: boolean;
+  @IsOptional() @IsNumber() @Min(0) stock?: number;
   @IsOptional() @IsNumber() @Min(0) minStock?: number;
   @IsOptional() @IsNumber() @Min(0) maxStock?: number;
 
@@ -50,4 +61,10 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductPriceDto)
   prices!: ProductPriceDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductComponentDto)
+  components?: ProductComponentDto[];
 }

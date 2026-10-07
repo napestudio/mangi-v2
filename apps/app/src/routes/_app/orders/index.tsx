@@ -131,6 +131,22 @@ function OrdersPage() {
                   </dd>
                 </div>
               )}
+              {panel.selected.status === OrderStatus.CANCELED && (
+                <>
+                  <div>
+                    <dt className="text-xs font-medium uppercase text-neutral-500">Cancelado el</dt>
+                    <dd className="text-neutral-900">
+                      {panel.selected.cancelledAt ? new Date(panel.selected.cancelledAt).toLocaleString() : "—"}
+                    </dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs font-medium uppercase text-neutral-500">Motivo</dt>
+                    <dd className="text-neutral-900">
+                      {panel.selected.cancelReason ?? "Sin motivo especificado"}
+                    </dd>
+                  </div>
+                </>
+              )}
             </dl>
 
             {isActive ? (

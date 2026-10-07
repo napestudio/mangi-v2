@@ -55,8 +55,15 @@ export type CreateOrderPayload = z.infer<typeof createOrderBaseSchema>;
 
 export const updateOrderStatusSchema = z.object({
   status: z.nativeEnum(OrderStatus),
+  restoreStock: z.boolean().optional(),
+  cancelReason: z.string().optional(),
 });
 export type UpdateOrderStatusPayload = z.infer<typeof updateOrderStatusSchema>;
+
+export const removeOrderItemSchema = z.object({
+  restoreStock: z.boolean().optional(),
+});
+export type RemoveOrderItemPayload = z.infer<typeof removeOrderItemSchema>;
 
 export const payOrderSchema = z.object({
   paymentMethod: z.nativeEnum(PaymentMethod).optional(),

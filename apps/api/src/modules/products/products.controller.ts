@@ -32,7 +32,7 @@ export class ProductsController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateProductDto) {
-    return this.productsService.create(requireRestaurantId(user), dto);
+    return this.productsService.create(requireRestaurantId(user), user.id, dto);
   }
 
   @UseGuards(RolesGuard)

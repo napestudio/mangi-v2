@@ -9,6 +9,7 @@ import { CheckoutOrderDto } from "./dto/checkout-order.dto";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { ListOrdersDto } from "./dto/list-orders.dto";
 import { MoveOrderTableDto } from "./dto/move-order-table.dto";
+import { RemoveOrderItemQueryDto } from "./dto/remove-order-item-query.dto";
 import { SendToKitchenDto } from "./dto/send-to-kitchen.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrdersService } from "./orders.service";
@@ -37,7 +38,7 @@ export class OrdersController {
 
   @Patch(":id/status")
   updateStatus(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: UpdateOrderStatusDto) {
-    return this.ordersService.updateStatus(requireRestaurantId(user), id, dto);
+    return this.ordersService.updateStatus(requireRestaurantId(user), user.id, id, dto);
   }
 
   @Patch(":id/checkout")
@@ -52,12 +53,17 @@ export class OrdersController {
 
   @Post(":id/items")
   addItems(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: AddOrderItemsDto) {
-    return this.ordersService.addItems(requireRestaurantId(user), id, dto);
+    return this.ordersService.addItems(requireRestaurantId(user), user.id, id, dto);
   }
 
   @Delete(":id/items/:itemId")
-  removeItem(@CurrentUser() user: RequestUser, @Param("id") id: string, @Param("itemId") itemId: string) {
-    return this.ordersService.removeItem(requireRestaurantId(user), id, itemId);
+  removeItem(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Param("itemId") itemId: string,
+    @Query() query: RemoveOrderItemQueryDto,
+  ) {
+    return this.ordersService.removeItem(requireRestaurantId(user), user.id, id, itemId, query.restoreStock ?? false);
   }
 
   @Delete(":id")

@@ -1,4 +1,4 @@
-import { OrderStatus, OrderType } from "@mangiar/shared";
+import { OrderStatus, OrderType, PriceType, ProductTag } from "@mangiar/shared";
 
 export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
   [OrderType.DINE_IN]: "Mesa",
@@ -12,4 +12,21 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   [OrderStatus.IN_PROGRESS]: "En progreso",
   [OrderStatus.COMPLETED]: "Completado",
   [OrderStatus.CANCELED]: "Cancelado",
+};
+
+export const PRICE_TYPE_LABELS: Record<PriceType, string> = {
+  [PriceType.DINE_IN]: "Mesa",
+  [PriceType.TAKE_AWAY]: "Para llevar",
+  [PriceType.DELIVERY]: "Delivery",
+};
+
+export const PRODUCT_TAG_LABELS: Record<ProductTag, string> = {
+  [ProductTag.SPICY]: "Picante",
+  [ProductTag.VEGAN]: "Vegano",
+  [ProductTag.VEGETARIAN]: "Vegetariano",
+  [ProductTag.GLUTEN_FREE]: "Sin gluten",
+  [ProductTag.DAIRY_FREE]: "Sin lácteos",
+  [ProductTag.NUT_FREE]: "Sin frutos secos",
+  [ProductTag.NEW]: "Nuevo",
+  [ProductTag.POPULAR]: "Popular",
 };

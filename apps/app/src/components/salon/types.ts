@@ -5,12 +5,20 @@ export interface ProductPrice {
   price: string;
 }
 
+export interface ProductComponentLink {
+  quantity: string;
+  component: { id: string; name: string; trackStock: boolean; stock: string };
+}
+
 export interface ProductOption {
   id: string;
   name: string;
   isActive: boolean;
   category: { id: string; name: string } | null;
   prices: ProductPrice[];
+  trackStock: boolean;
+  stock: string;
+  comboComponents: ProductComponentLink[];
 }
 
 export interface OrderItemModifierView {
@@ -28,6 +36,7 @@ export interface OrderItemView {
   totalPrice: string;
   notes: string | null;
   sentToKitchen: boolean;
+  stockDeducted: boolean;
   modifiers: OrderItemModifierView[];
 }
 
@@ -46,6 +55,8 @@ export interface OrderView {
   total: string;
   items: OrderItemView[];
   createdAt: string;
+  cancelledAt: string | null;
+  cancelReason: string | null;
 }
 
 export interface StagedItem {
