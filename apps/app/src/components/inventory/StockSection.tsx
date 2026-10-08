@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Minus, Plus } from "lucide-react";
 import { StaffPicker } from "@/components/staff/StaffPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,10 +44,10 @@ export function StockSection({ productId, ingredientId, currentStock, invalidate
   const [attributedToId, setAttributedToId] = useState<string | undefined>(undefined);
 
   const submit = useMutation({
-    mutationFn: async () => {
-      const payload = { productId, ingredientId, reason, attributedToId };
+    mutationFn: async (sign?: 1 | -1) => {
+      const payload = { productId, ingredientId, reason: reason.trim() || undefined, attributedToId };
       if (mode === "adjust") {
-        await apiClient.post("/stock/adjust", { ...payload, delta: Number(amount) });
+        await apiClient.post("/stock/adjust", { ...payload, delta: (sign ?? 1) * Number(amount) });
       } else {
         await apiClient.post("/stock/set", { ...payload, stock: Number(amount) });
       }
@@ -76,7 +77,7 @@ export function StockSection({ productId, ingredientId, currentStock, invalidate
               mode === "adjust" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600",
             )}
           >
-            Ajustar (+/-)
+            Sumar / Restar
           </button>
           <button
             type="button"
@@ -91,15 +92,42 @@ export function StockSection({ productId, ingredientId, currentStock, invalidate
         </div>
         <Input
           type="number"
+          min={0}
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
-          placeholder={mode === "adjust" ? "Cantidad (ej: -5 o 10)" : "Nuevo stock"}
+          placeholder={mode === "adjust" ? "Cantidad" : "Nuevo stock"}
         />
-        <Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Motivo (ej: merma, conteo)" />
+        <Input
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Motivo (opcional, ej: merma, conteo)"
+        />
         <StaffPicker value={attributedToId} onChange={setAttributedToId} />
-        <Button size="sm" onClick={() => submit.mutate()} disabled={!amount || !reason || submit.isPending}>
-          Registrar movimiento
-        </Button>
+        {mode === "adjust" ? (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={() => submit.mutate(-1)}
+              disabled={!amount || submit.isPending}
+            >
+              <Minus className="h-4 w-4" /> Quitar
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={() => submit.mutate(1)}
+              disabled={!amount || submit.isPending}
+            >
+              <Plus className="h-4 w-4" /> Agregar
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" onClick={() => submit.mutate()} disabled={!amount || submit.isPending}>
+            Registrar movimiento
+          </Button>
+        )}
       </div>
 
       <div>

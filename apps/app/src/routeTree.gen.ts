@@ -12,12 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as AuthRouteRouteImport } from './routes/_auth/route'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppInventoryRouteRouteImport } from './routes/_app/inventory/route'
 import { Route as AppSettingsRouteRouteImport } from './routes/_app/settings/route'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
 import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
+import { Route as AppIngredientsIndexRouteImport } from './routes/_app/ingredients/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
@@ -33,7 +35,8 @@ import { Route as AppSettingsReservationsRouteImport } from './routes/_app/setti
 import { Route as AppSettingsRestaurantRouteImport } from './routes/_app/settings/restaurant'
 import { Route as AppSuppliersIndexRouteImport } from './routes/_app/suppliers/index'
 import { Route as AppSuppliersPurchaseOrdersRouteImport } from './routes/_app/suppliers/purchase-orders'
-import { Route as AppInventoryIngredientsIndexRouteImport } from './routes/_app/inventory/ingredients/index'
+import { Route as AppInventoryIngredientStockIndexRouteImport } from './routes/_app/inventory/ingredient-stock/index'
+import { Route as AppInventoryStockIndexRouteImport } from './routes/_app/inventory/stock/index'
 import { Route as AppMenuProductsIndexRouteImport } from './routes/_app/menu/products/index'
 
 const AppRouteRoute = AppRouteRouteImport.update({
@@ -47,6 +50,11 @@ const AuthRouteRoute = AuthRouteRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppInventoryRouteRoute = AppInventoryRouteRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppSettingsRouteRoute = AppSettingsRouteRouteImport.update({
@@ -77,6 +85,11 @@ const AppCashIndexRoute = AppCashIndexRouteImport.update({
 const AppExpensesIndexRoute = AppExpensesIndexRouteImport.update({
   id: '/expenses/',
   path: '/expenses/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppIngredientsIndexRoute = AppIngredientsIndexRouteImport.update({
+  id: '/ingredients/',
+  path: '/ingredients/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppInvoicesIndexRoute = AppInvoicesIndexRouteImport.update({
@@ -155,12 +168,17 @@ const AppSuppliersPurchaseOrdersRoute =
     path: '/suppliers/purchase-orders',
     getParentRoute: () => AppRouteRoute,
   } as any)
-const AppInventoryIngredientsIndexRoute =
-  AppInventoryIngredientsIndexRouteImport.update({
-    id: '/inventory/ingredients/',
-    path: '/inventory/ingredients/',
-    getParentRoute: () => AppRouteRoute,
+const AppInventoryIngredientStockIndexRoute =
+  AppInventoryIngredientStockIndexRouteImport.update({
+    id: '/ingredient-stock/',
+    path: '/ingredient-stock/',
+    getParentRoute: () => AppInventoryRouteRoute,
   } as any)
+const AppInventoryStockIndexRoute = AppInventoryStockIndexRouteImport.update({
+  id: '/stock/',
+  path: '/stock/',
+  getParentRoute: () => AppInventoryRouteRoute,
+} as any)
 const AppMenuProductsIndexRoute = AppMenuProductsIndexRouteImport.update({
   id: '/menu/products/',
   path: '/menu/products/',
@@ -169,6 +187,7 @@ const AppMenuProductsIndexRoute = AppMenuProductsIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/inventory': typeof AppInventoryRouteRouteWithChildren
   '/settings': typeof AppSettingsRouteRouteWithChildren
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -185,16 +204,19 @@ export interface FileRoutesByFullPath {
   '/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
   '/cash/': typeof AppCashIndexRoute
   '/expenses/': typeof AppExpensesIndexRoute
+  '/ingredients/': typeof AppIngredientsIndexRoute
   '/invoices/': typeof AppInvoicesIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/reservations/': typeof AppReservationsIndexRoute
   '/salon/': typeof AppSalonIndexRoute
   '/suppliers/': typeof AppSuppliersIndexRoute
-  '/inventory/ingredients/': typeof AppInventoryIngredientsIndexRoute
+  '/inventory/ingredient-stock/': typeof AppInventoryIngredientStockIndexRoute
+  '/inventory/stock/': typeof AppInventoryStockIndexRoute
   '/menu/products/': typeof AppMenuProductsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
+  '/inventory': typeof AppInventoryRouteRouteWithChildren
   '/settings': typeof AppSettingsRouteRouteWithChildren
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -211,18 +233,21 @@ export interface FileRoutesByTo {
   '/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
   '/cash': typeof AppCashIndexRoute
   '/expenses': typeof AppExpensesIndexRoute
+  '/ingredients': typeof AppIngredientsIndexRoute
   '/invoices': typeof AppInvoicesIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/reservations': typeof AppReservationsIndexRoute
   '/salon': typeof AppSalonIndexRoute
   '/suppliers': typeof AppSuppliersIndexRoute
-  '/inventory/ingredients': typeof AppInventoryIngredientsIndexRoute
+  '/inventory/ingredient-stock': typeof AppInventoryIngredientStockIndexRoute
+  '/inventory/stock': typeof AppInventoryStockIndexRoute
   '/menu/products': typeof AppMenuProductsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteRouteWithChildren
   '/_auth': typeof AuthRouteRouteWithChildren
+  '/_app/inventory': typeof AppInventoryRouteRouteWithChildren
   '/_app/settings': typeof AppSettingsRouteRouteWithChildren
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
@@ -240,18 +265,21 @@ export interface FileRoutesById {
   '/_app/suppliers/purchase-orders': typeof AppSuppliersPurchaseOrdersRoute
   '/_app/cash/': typeof AppCashIndexRoute
   '/_app/expenses/': typeof AppExpensesIndexRoute
+  '/_app/ingredients/': typeof AppIngredientsIndexRoute
   '/_app/invoices/': typeof AppInvoicesIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/reservations/': typeof AppReservationsIndexRoute
   '/_app/salon/': typeof AppSalonIndexRoute
   '/_app/suppliers/': typeof AppSuppliersIndexRoute
-  '/_app/inventory/ingredients/': typeof AppInventoryIngredientsIndexRoute
+  '/_app/inventory/ingredient-stock/': typeof AppInventoryIngredientStockIndexRoute
+  '/_app/inventory/stock/': typeof AppInventoryStockIndexRoute
   '/_app/menu/products/': typeof AppMenuProductsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/inventory'
     | '/settings'
     | '/forgot-password'
     | '/login'
@@ -268,16 +296,19 @@ export interface FileRouteTypes {
     | '/suppliers/purchase-orders'
     | '/cash/'
     | '/expenses/'
+    | '/ingredients/'
     | '/invoices/'
     | '/orders/'
     | '/reservations/'
     | '/salon/'
     | '/suppliers/'
-    | '/inventory/ingredients/'
+    | '/inventory/ingredient-stock/'
+    | '/inventory/stock/'
     | '/menu/products/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/inventory'
     | '/settings'
     | '/forgot-password'
     | '/login'
@@ -294,17 +325,20 @@ export interface FileRouteTypes {
     | '/suppliers/purchase-orders'
     | '/cash'
     | '/expenses'
+    | '/ingredients'
     | '/invoices'
     | '/orders'
     | '/reservations'
     | '/salon'
     | '/suppliers'
-    | '/inventory/ingredients'
+    | '/inventory/ingredient-stock'
+    | '/inventory/stock'
     | '/menu/products'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
+    | '/_app/inventory'
     | '/_app/settings'
     | '/_auth/forgot-password'
     | '/_auth/login'
@@ -322,12 +356,14 @@ export interface FileRouteTypes {
     | '/_app/suppliers/purchase-orders'
     | '/_app/cash/'
     | '/_app/expenses/'
+    | '/_app/ingredients/'
     | '/_app/invoices/'
     | '/_app/orders/'
     | '/_app/reservations/'
     | '/_app/salon/'
     | '/_app/suppliers/'
-    | '/_app/inventory/ingredients/'
+    | '/_app/inventory/ingredient-stock/'
+    | '/_app/inventory/stock/'
     | '/_app/menu/products/'
   fileRoutesById: FileRoutesById
 }
@@ -357,6 +393,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/inventory': {
+      id: '/_app/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof AppInventoryRouteRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/settings': {
@@ -399,6 +442,13 @@ declare module '@tanstack/react-router' {
       path: '/expenses'
       fullPath: '/expenses/'
       preLoaderRoute: typeof AppExpensesIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/ingredients/': {
+      id: '/_app/ingredients/'
+      path: '/ingredients'
+      fullPath: '/ingredients/'
+      preLoaderRoute: typeof AppIngredientsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/invoices/': {
@@ -506,12 +556,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSuppliersPurchaseOrdersRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/_app/inventory/ingredients/': {
-      id: '/_app/inventory/ingredients/'
-      path: '/inventory/ingredients'
-      fullPath: '/inventory/ingredients/'
-      preLoaderRoute: typeof AppInventoryIngredientsIndexRouteImport
-      parentRoute: typeof AppRouteRoute
+    '/_app/inventory/ingredient-stock/': {
+      id: '/_app/inventory/ingredient-stock/'
+      path: '/ingredient-stock'
+      fullPath: '/inventory/ingredient-stock/'
+      preLoaderRoute: typeof AppInventoryIngredientStockIndexRouteImport
+      parentRoute: typeof AppInventoryRouteRoute
+    }
+    '/_app/inventory/stock/': {
+      id: '/_app/inventory/stock/'
+      path: '/stock'
+      fullPath: '/inventory/stock/'
+      preLoaderRoute: typeof AppInventoryStockIndexRouteImport
+      parentRoute: typeof AppInventoryRouteRoute
     }
     '/_app/menu/products/': {
       id: '/_app/menu/products/'
@@ -522,6 +579,19 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppInventoryRouteRouteChildren {
+  AppInventoryIngredientStockIndexRoute: typeof AppInventoryIngredientStockIndexRoute
+  AppInventoryStockIndexRoute: typeof AppInventoryStockIndexRoute
+}
+
+const AppInventoryRouteRouteChildren: AppInventoryRouteRouteChildren = {
+  AppInventoryIngredientStockIndexRoute: AppInventoryIngredientStockIndexRoute,
+  AppInventoryStockIndexRoute: AppInventoryStockIndexRoute,
+}
+
+const AppInventoryRouteRouteWithChildren =
+  AppInventoryRouteRoute._addFileChildren(AppInventoryRouteRouteChildren)
 
 interface AppSettingsRouteRouteChildren {
   AppSettingsDeliveryRoute: typeof AppSettingsDeliveryRoute
@@ -545,6 +615,7 @@ const AppSettingsRouteRouteWithChildren =
   AppSettingsRouteRoute._addFileChildren(AppSettingsRouteRouteChildren)
 
 interface AppRouteRouteChildren {
+  AppInventoryRouteRoute: typeof AppInventoryRouteRouteWithChildren
   AppSettingsRouteRoute: typeof AppSettingsRouteRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
@@ -553,16 +624,17 @@ interface AppRouteRouteChildren {
   AppSuppliersPurchaseOrdersRoute: typeof AppSuppliersPurchaseOrdersRoute
   AppCashIndexRoute: typeof AppCashIndexRoute
   AppExpensesIndexRoute: typeof AppExpensesIndexRoute
+  AppIngredientsIndexRoute: typeof AppIngredientsIndexRoute
   AppInvoicesIndexRoute: typeof AppInvoicesIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppReservationsIndexRoute: typeof AppReservationsIndexRoute
   AppSalonIndexRoute: typeof AppSalonIndexRoute
   AppSuppliersIndexRoute: typeof AppSuppliersIndexRoute
-  AppInventoryIngredientsIndexRoute: typeof AppInventoryIngredientsIndexRoute
   AppMenuProductsIndexRoute: typeof AppMenuProductsIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppInventoryRouteRoute: AppInventoryRouteRouteWithChildren,
   AppSettingsRouteRoute: AppSettingsRouteRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
@@ -571,12 +643,12 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppSuppliersPurchaseOrdersRoute: AppSuppliersPurchaseOrdersRoute,
   AppCashIndexRoute: AppCashIndexRoute,
   AppExpensesIndexRoute: AppExpensesIndexRoute,
+  AppIngredientsIndexRoute: AppIngredientsIndexRoute,
   AppInvoicesIndexRoute: AppInvoicesIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppReservationsIndexRoute: AppReservationsIndexRoute,
   AppSalonIndexRoute: AppSalonIndexRoute,
   AppSuppliersIndexRoute: AppSuppliersIndexRoute,
-  AppInventoryIngredientsIndexRoute: AppInventoryIngredientsIndexRoute,
   AppMenuProductsIndexRoute: AppMenuProductsIndexRoute,
 }
 

@@ -14,7 +14,7 @@ import { IngredientsService } from "./ingredients.service";
 @ApiTags("ingredients")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, ModuleGuard)
-@RequiresModule(Module.INVENTORY)
+@RequiresModule(Module.INGREDIENTS)
 @Controller("ingredients")
 export class IngredientsController {
   constructor(private readonly ingredientsService: IngredientsService) {}

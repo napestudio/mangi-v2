@@ -8,7 +8,7 @@ export class AdjustStockDto {
   @IsNumber()
   delta!: number;
 
-  @IsString() reason!: string;
+  @IsOptional() @IsString() reason?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() reference?: string;
   @IsOptional() @IsString() attributedToId?: string;

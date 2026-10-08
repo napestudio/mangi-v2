@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { Module } from "@mangiar/shared";
 import {
   Prisma,
   type PriceType as PrismaPriceType,
@@ -10,6 +11,7 @@ import {
 } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { StockService } from "../inventory/stock.service";
+import { SubscriptionsService } from "../subscriptions/subscriptions.service";
 import type { CreateProductDto, ProductComponentDto } from "./dto/create-product.dto";
 import type { UpdateProductDto } from "./dto/update-product.dto";
 
@@ -28,6 +30,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly stockService: StockService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   findAll(restaurantId: string): Promise<PrismaProduct[]> {
@@ -85,12 +88,15 @@ export class ProductsService {
     });
 
     if (dto.trackStock && dto.stock !== undefined && dto.stock > 0) {
-      await this.stockService.set(restaurantId, currentUserId, {
-        productId: product.id,
-        stock: dto.stock,
-        reason: "Stock inicial",
-      });
-      return this.findOne(restaurantId, product.id);
+      const activeModules = await this.subscriptionsService.getActiveModules(restaurantId);
+      if (activeModules.includes(Module.INVENTORY)) {
+        await this.stockService.set(restaurantId, currentUserId, {
+          productId: product.id,
+          stock: dto.stock,
+          reason: "Stock inicial",
+        });
+        return this.findOne(restaurantId, product.id);
+      }
     }
 
     return product;

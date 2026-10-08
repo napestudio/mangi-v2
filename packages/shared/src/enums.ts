@@ -18,6 +18,7 @@ export enum Module {
   ANALYTICS = "ANALYTICS",
   EXPENSES = "EXPENSES",
   PRINTING = "PRINTING",
+  INGREDIENTS = "INGREDIENTS",
 }
 
 export enum SubscriptionStatus {

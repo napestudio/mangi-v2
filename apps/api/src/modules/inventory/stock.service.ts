@@ -7,10 +7,12 @@ import type { SetStockDto } from "./dto/set-stock.dto";
 
 const MOVEMENT_INCLUDE = { createdBy: { select: { id: true, name: true, username: true } } } as const;
 
+const DEFAULT_REASON = "Ajuste manual";
+
 interface MovementTarget {
   productId?: string;
   ingredientId?: string;
-  reason: string;
+  reason?: string;
   notes?: string;
   reference?: string;
   attributedToId?: string;
@@ -101,7 +103,7 @@ export class StockService {
           quantity: newStock - previousStock,
           previousStock,
           newStock,
-          reason: dto.reason,
+          reason: dto.reason?.trim() || DEFAULT_REASON,
           notes: dto.notes,
           reference: dto.reference,
           createdById,

@@ -5,7 +5,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { isAxiosError } from "axios";
 import { FolderOpen, Plus, X } from "lucide-react";
-import { StockSection } from "@/components/inventory/StockSection";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
@@ -192,7 +191,7 @@ function ProductsPage() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<ProductFormState>(emptyForm());
-  const [panelMode, setPanelMode] = useState<"info" | "edit" | "stock">("info");
+  const [panelMode, setPanelMode] = useState<"info" | "edit">("info");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [categoryForm, setCategoryForm] = useState<CategoryFormState>(emptyCategoryForm());
@@ -341,10 +340,6 @@ function ProductsPage() {
     setPanelMode("edit");
   }
 
-  function openStock() {
-    setPanelMode("stock");
-  }
-
   const basicValid = form.name.trim() !== "";
   const hasAtLeastOnePrice = form.differentiatedPrices
     ? Object.values(form.prices).some((price) => price !== "")
@@ -378,7 +373,7 @@ function ProductsPage() {
       content: (
         <>
           <ProductPricingFields form={form} setForm={setForm} />
-          <ProductStockSettings form={form} setForm={setForm} showInitialStock />
+          {inventoryActive && <ProductStockSettings form={form} setForm={setForm} showInitialStock />}
         </>
       ),
     },
@@ -503,11 +498,8 @@ function ProductsPage() {
                 {panelMode === "edit" && (
                   <div className="flex flex-col gap-6">
                     <ProductForm form={form} setForm={setForm} categories={categories ?? []} componentOptions={componentOptions} />
-                    <ProductStockSettings form={form} setForm={setForm} />
+                    {inventoryActive && <ProductStockSettings form={form} setForm={setForm} />}
                   </div>
-                )}
-                {panelMode === "stock" && (
-                  <StockSection productId={selectedProduct.id} currentStock={selectedProduct.stock} invalidateKey={["products"]} />
                 )}
               </div>
 
@@ -549,11 +541,6 @@ function ProductsPage() {
                       <Button size="sm" className="flex-1" onClick={openEdit}>
                         Editar
                       </Button>
-                      {inventoryActive && selectedProduct.trackStock && (
-                        <Button size="sm" variant="outline" onClick={openStock}>
-                          Editar stock
-                        </Button>
-                      )}
                       <Button size="sm" variant="destructive" onClick={() => setConfirmingDelete(true)}>
                         Eliminar
                       </Button>
@@ -573,11 +560,6 @@ function ProductsPage() {
                       Guardar cambios
                     </Button>
                   </>
-                )}
-                {panelMode === "stock" && (
-                  <Button size="sm" variant="ghost" className="flex-1" onClick={() => setPanelMode("info")}>
-                    Volver
-                  </Button>
                 )}
               </div>
             </div>

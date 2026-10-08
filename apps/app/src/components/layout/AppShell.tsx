@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import {
   Armchair,
+  Boxes,
   CalendarClock,
   ClipboardList,
   FileText,
@@ -54,8 +55,14 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Menú", to: "/menu/products", icon: UtensilsCrossed },
   {
     label: "Ingredientes",
-    to: "/inventory/ingredients",
+    to: "/ingredients",
     icon: Package,
+    module: Module.INGREDIENTS,
+  },
+  {
+    label: "Inventario",
+    to: "/inventory/stock",
+    icon: Boxes,
     module: Module.INVENTORY,
   },
   {

@@ -29,6 +29,7 @@ enum Module {
   ANALYTICS
   EXPENSES
   PRINTING
+  INGREDIENTS
 }
 
 enum ExpenseCategory {

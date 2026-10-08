@@ -5,7 +5,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 import { ModuleGuard } from "@/components/guards/ModuleGuard";
-import { StockSection } from "@/components/inventory/StockSection";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
@@ -72,9 +71,9 @@ function unitAbbr(item: IngredientItem): string {
   return "u.";
 }
 
-export const Route = createFileRoute("/_app/inventory/ingredients/")({
+export const Route = createFileRoute("/_app/ingredients/")({
   component: () => (
-    <ModuleGuard module={Module.INVENTORY}>
+    <ModuleGuard module={Module.INGREDIENTS}>
       <IngredientsPage />
     </ModuleGuard>
   ),
@@ -207,12 +206,6 @@ function IngredientsPage() {
                 Guardar cambios
               </Button>
             </IngredientForm>
-
-            <StockSection
-              ingredientId={panel.selected.id}
-              currentStock={panel.selected.stock}
-              invalidateKey={["ingredients"]}
-            />
 
             <Button
               size="sm"

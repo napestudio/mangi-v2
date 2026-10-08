@@ -140,9 +140,9 @@ export class OrdersService {
         'Delivery orders require a delivery address',
       );
     }
+    const activeModules =
+      await this.subscriptionsService.getActiveModules(restaurantId);
     if (orderType === 'DINE_IN' && !dto.tableId) {
-      const activeModules =
-        await this.subscriptionsService.getActiveModules(restaurantId);
       if (activeModules.includes(Module.SALON)) {
         throw new BadRequestException(
           'Dine-in orders require a table when the Salón module is active',
@@ -228,7 +228,7 @@ export class OrdersService {
         totalPrice,
         notes: item.notes,
         sentToKitchen: true,
-        stockDeducted: this.computesStockDeducted(product),
+        stockDeducted: this.computesStockDeducted(product, activeModules),
         modifiers: { create: modifiers },
       };
     });
@@ -305,7 +305,7 @@ export class OrdersService {
 
       for (const item of dto.items) {
         const product = products.find((candidate) => candidate.id === item.productId)!;
-        if (this.computesStockDeducted(product)) {
+        if (this.computesStockDeducted(product, activeModules)) {
           await this.applyStockForOrderItem(
             tx,
             restaurantId,
@@ -573,6 +573,9 @@ export class OrdersService {
       throw new BadRequestException('One or more products were not found');
     }
 
+    const activeModules =
+      await this.subscriptionsService.getActiveModules(restaurantId);
+
     const { result, newItemIds } = await this.prisma.$transaction(
       async (tx) => {
         const newItemIds: string[] = [];
@@ -595,7 +598,7 @@ export class OrdersService {
           }
           const unitPrice = item.unitPrice ?? Number(priceEntry.price);
           const totalPrice = unitPrice * item.quantity;
-          const stockDeducted = this.computesStockDeducted(product);
+          const stockDeducted = this.computesStockDeducted(product, activeModules);
 
           const created = await tx.orderItem.create({
             data: {
@@ -926,10 +929,16 @@ export class OrdersService {
     }
   }
 
-  private computesStockDeducted(product: {
-    trackStock: boolean;
-    comboComponents: { component: { trackStock: boolean } }[];
-  }): boolean {
+  private computesStockDeducted(
+    product: {
+      trackStock: boolean;
+      comboComponents: { component: { trackStock: boolean } }[];
+    },
+    activeModules: Module[],
+  ): boolean {
+    if (!activeModules.includes(Module.INVENTORY)) {
+      return false;
+    }
     return product.trackStock || product.comboComponents.some((c) => c.component.trackStock);
   }
 
