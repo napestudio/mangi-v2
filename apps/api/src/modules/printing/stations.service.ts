@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { CreateStationDto } from "./dto/create-station.dto";
 import type { UpdateStationDto } from "./dto/update-station.dto";
@@ -59,6 +60,15 @@ export class StationsService {
 
   async remove(restaurantId: string, id: string): Promise<void> {
     await this.findOne(restaurantId, id);
-    await this.prisma.station.delete({ where: { id } });
+    try {
+      await this.prisma.station.delete({ where: { id } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        throw new ConflictException(
+          "No se puede eliminar esta estación porque tiene impresoras asociadas. Quitale la estación a esas impresoras primero.",
+        );
+      }
+      throw error;
+    }
   }
 }

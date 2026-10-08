@@ -9,9 +9,17 @@ interface PrintJobItem {
   totalPrice?: string;
 }
 
+type KitchenOrderType = "DINE_IN" | "TAKE_AWAY" | "DELIVERY" | "COUNTER";
+
 interface KitchenPayload {
   type: "kitchen";
   orderId: string;
+  stationName: string;
+  orderCode: string;
+  orderType: KitchenOrderType;
+  tableNumber: string | null;
+  customerName: string | null;
+  deliveryAddress: string | null;
   items: PrintJobItem[];
 }
 
@@ -26,7 +34,11 @@ interface ReceiptPayload {
   paymentMethodExt: string | null;
 }
 
-type PrintJobPayloadData = KitchenPayload | ReceiptPayload;
+interface TestPayload {
+  type: "test";
+}
+
+type PrintJobPayloadData = KitchenPayload | ReceiptPayload | TestPayload;
 
 interface PrinterRef {
   id: string;
@@ -63,8 +75,10 @@ export async function handlePrintJob(printJob: IncomingPrintJob, accessToken: st
   }
 }
 
+// Debe mantenerse en sync con packages/shared/src/utils/printer-paper.ts#getCharsPerLine
+// (este paquete no depende de @mangiar/shared).
 function charsPerLine(paperWidthMm: number): number {
-  return paperWidthMm >= 80 ? 42 : 32;
+  return paperWidthMm >= 80 ? 48 : 32;
 }
 
 async function printNetwork(printJob: IncomingPrintJob): Promise<void> {
@@ -104,14 +118,27 @@ function buildTicket(printer: ThermalPrinter, printJob: IncomingPrintJob): void 
 
   printer.alignLeft();
   if (payload.type === "kitchen") {
+    printer.alignCenter();
     printer.bold(true);
-    printer.println("COCINA");
+    printer.println(payload.stationName.toUpperCase());
     printer.bold(false);
+    printer.setTypeFontB();
+    printer.println(new Date().toLocaleString("es-AR"));
+    printer.setTypeFontA();
+    printer.drawLine();
+
+    printer.alignLeft();
+    printer.bold(true);
+    printer.println(payload.orderCode);
+    printer.bold(false);
+    printer.println(kitchenOrderContextLine(payload));
+    printer.drawLine();
+
     for (const item of payload.items) {
       printer.println(`${item.quantity}x ${item.name}`);
       if (item.notes) printer.println(`  ${item.notes}`);
     }
-  } else {
+  } else if (payload.type === "receipt") {
     printer.bold(true);
     printer.println("RECIBO");
     printer.bold(false);
@@ -125,6 +152,20 @@ function buildTicket(printer: ThermalPrinter, printJob: IncomingPrintJob): void 
     printer.bold(true);
     printer.leftRight("TOTAL", `$${payload.total}`);
     printer.bold(false);
+  } else {
+    const width = charsPerLine(printerRef.paperWidth ?? 80);
+    printer.alignCenter();
+    printer.bold(true);
+    printer.println("PRUEBA DE IMPRESIÓN");
+    printer.bold(false);
+    printer.alignLeft();
+    printer.println(printerRef.name);
+    printer.println(new Date().toLocaleString("es-AR"));
+    printer.println(`Papel: ${printerRef.paperWidth ?? 80}mm · ${width} caracteres/línea`);
+    printer.drawLine();
+    printer.println("x".repeat(width));
+    printer.drawLine();
+    printer.println("Si ves esta línea completa y alineada, la impresora está bien configurada.");
   }
 
   if (printerRef.footerText) {
@@ -168,6 +209,23 @@ function renderTicketHtml(printJob: IncomingPrintJob): string {
   const { payload, printer: printerRef } = printJob;
   const widthMm = printerRef.paperWidth ?? 80;
 
+  if (payload.type === "test") {
+    const chars = charsPerLine(widthMm);
+    return `<!doctype html><html><head><meta charset="utf-8"><style>
+      body { width: ${widthMm}mm; font-family: monospace; font-size: 12px; margin: 0; padding: 4px; }
+      hr { border: none; border-top: 1px dashed #000; }
+    </style></head><body>
+      <div style="text-align:center;font-weight:bold">PRUEBA DE IMPRESIÓN</div>
+      <div>${escapeHtml(printerRef.name)}</div>
+      <div>${new Date().toLocaleString("es-AR")}</div>
+      <div>Papel: ${widthMm}mm · ${chars} caracteres/línea</div>
+      <hr/>
+      <div style="word-break:break-all">${"x".repeat(chars)}</div>
+      <hr/>
+      <div>Si ves esta línea completa y alineada, la impresora está bien configurada.</div>
+    </body></html>`;
+  }
+
   const rows =
     payload.type === "kitchen"
       ? payload.items
@@ -184,15 +242,42 @@ function renderTicketHtml(printJob: IncomingPrintJob): string {
           .join("") +
         `<hr/><div style="display:flex;justify-content:space-between;font-weight:bold"><span>TOTAL</span><span>$${payload.total}</span></div>`;
 
+  const kitchenHeader =
+    payload.type === "kitchen"
+      ? `<div style="text-align:center;font-weight:bold">${escapeHtml(payload.stationName.toUpperCase())}</div>
+         <div style="text-align:center;font-size:9px;color:#444">${new Date().toLocaleString("es-AR")}</div>
+         <hr/>
+         <div style="font-weight:bold">${escapeHtml(payload.orderCode)}</div>
+         <div>${escapeHtml(kitchenOrderContextLine(payload))}</div>`
+      : `<div style="font-weight:bold">RECIBO</div>`;
+
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     body { width: ${widthMm}mm; font-family: monospace; font-size: 12px; margin: 0; padding: 4px; }
     hr { border: none; border-top: 1px dashed #000; }
   </style></head><body>
     ${printerRef.headerText ? `<div style="text-align:center;font-weight:bold">${escapeHtml(printerRef.headerText)}</div><hr/>` : ""}
-    <div style="font-weight:bold">${payload.type === "kitchen" ? "COCINA" : "RECIBO"}</div>
+    ${kitchenHeader}
     ${rows}
     ${printerRef.footerText ? `<hr/><div style="text-align:center">${escapeHtml(printerRef.footerText)}</div>` : ""}
   </body></html>`;
+}
+
+/** Línea de contexto propia del tipo de pedido — lo que la cocina necesita para saber a qué
+ * mesa/cliente corresponde la comanda sin cruzar con otra pantalla. Compartida entre el ticket
+ * ESC/POS (buildTicket) y el fallback HTML de USB (renderTicketHtml). */
+function kitchenOrderContextLine(payload: KitchenPayload): string {
+  switch (payload.orderType) {
+    case "DINE_IN":
+      return payload.tableNumber ? `Mesa ${payload.tableNumber}` : "Mesa sin asignar";
+    case "TAKE_AWAY":
+      return payload.customerName ? `Para llevar · ${payload.customerName}` : "Para llevar";
+    case "DELIVERY":
+      return [payload.customerName, payload.deliveryAddress].filter((part): part is string => Boolean(part)).join(" · ") || "Delivery";
+    case "COUNTER":
+      return "Mostrador";
+    default:
+      return "";
+  }
 }
 
 function escapeHtml(text: string): string {

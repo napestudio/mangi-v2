@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { Module } from "@mangiar/shared";
+import { buildOrderCode, Module, type OrderType } from "@mangiar/shared";
 import type { Prisma, PrintJob as PrismaPrintJob } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SubscriptionsService } from "../subscriptions/subscriptions.service";
@@ -17,34 +17,57 @@ export class PrintJobsService {
   async enqueueKitchenTickets(restaurantId: string, orderId: string, itemIds: string[]): Promise<void> {
     if (!(await this.isPrintingActive(restaurantId)) || itemIds.length === 0) return;
 
-    const items = await this.prisma.orderItem.findMany({
-      where: { id: { in: itemIds }, orderId, order: { restaurantId } },
-      include: {
-        product: {
-          include: {
-            category: { include: { stationCategory: { include: { station: { include: { printers: true } } } } } },
+    const [order, items] = await Promise.all([
+      this.prisma.order.findFirst({
+        where: { id: orderId, restaurantId },
+        include: { table: true, client: true, restaurant: { select: { name: true } } },
+      }),
+      this.prisma.orderItem.findMany({
+        where: { id: { in: itemIds }, orderId, order: { restaurantId } },
+        include: {
+          product: {
+            include: {
+              category: { include: { stationCategory: { include: { station: { include: { printers: true } } } } } },
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
+    if (!order) return;
 
-    const itemsByPrinter = new Map<string, { printerId: string; items: typeof items }>();
+    // Contexto del pedido repetido igual en cada comanda (una por impresora/estación) para que la
+    // cocina sepa a qué mesa/cliente corresponde sin tener que cruzar con otra pantalla.
+    const orderContext = {
+      orderCode: buildOrderCode(order.restaurant.name, order.type as unknown as OrderType, order.orderNumber),
+      orderType: order.type,
+      tableNumber: order.table?.number ?? null,
+      customerName: order.client?.name ?? order.deliveryName ?? null,
+      deliveryAddress: order.type === "DELIVERY" ? order.deliveryAddress : null,
+    };
+
+    const itemsByPrinter = new Map<string, { printerId: string; stationName: string; items: typeof items }>();
     for (const item of items) {
       const stations = item.product.category?.stationCategory.map((entry) => entry.station) ?? [];
       for (const station of stations) {
         for (const printer of station.printers) {
           if (!printer.isActive || printer.printMode === "FULL_ORDER") continue;
-          const bucket = itemsByPrinter.get(printer.id) ?? { printerId: printer.id, items: [] };
+          const bucket = itemsByPrinter.get(printer.id) ?? {
+            printerId: printer.id,
+            stationName: station.name,
+            items: [],
+          };
           bucket.items.push(item);
           itemsByPrinter.set(printer.id, bucket);
         }
       }
     }
 
-    for (const { printerId, items: printerItems } of itemsByPrinter.values()) {
+    for (const { printerId, stationName, items: printerItems } of itemsByPrinter.values()) {
       await this.createAndEmit(restaurantId, printerId, {
         type: "kitchen",
         orderId,
+        stationName,
+        ...orderContext,
         items: printerItems.map((item) => ({ name: item.name, quantity: item.quantity, notes: item.notes })),
       });
     }
@@ -79,6 +102,14 @@ export class PrintJobsService {
     }
   }
 
+  async enqueueTestPrint(restaurantId: string, printerId: string): Promise<PrismaPrintJob> {
+    const printer = await this.prisma.printer.findFirst({ where: { id: printerId, restaurantId } });
+    if (!printer) {
+      throw new NotFoundException("Printer not found");
+    }
+    return this.createAndEmit(restaurantId, printerId, { type: "test" });
+  }
+
   findAllForPrinter(restaurantId: string, printerId: string): Promise<PrismaPrintJob[]> {
     return this.prisma.printJob.findMany({
       where: { printerId, printer: { restaurantId } },
@@ -93,7 +124,7 @@ export class PrintJobsService {
       throw new NotFoundException("Print job not found");
     }
 
-    return this.prisma.printJob.update({
+    const updated = await this.prisma.printJob.update({
       where: { id },
       data: {
         status: dto.status,
@@ -103,18 +134,32 @@ export class PrintJobsService {
         confirmedAt: dto.status === "CONFIRMED" ? new Date() : undefined,
       },
     });
+
+    // La prueba de impresión es la única acción de la UI que espera una respuesta de "¿la impresora
+    // anda?" en tiempo real, así que es el único caso donde un resultado de PrintJob retroalimenta
+    // Printer.status — un ticket de cocina/recibo normal no lo toca (ver mangiar-printing SKILL.md).
+    const payload = printJob.payload as { type?: string } | null;
+    if (payload?.type === "test" && (dto.status === "CONFIRMED" || dto.status === "FAILED")) {
+      await this.prisma.printer.update({
+        where: { id: printJob.printerId },
+        data: { status: dto.status === "CONFIRMED" ? "ONLINE" : "ERROR" },
+      });
+    }
+
+    return updated;
   }
 
   private async createAndEmit(
     restaurantId: string,
     printerId: string,
     payload: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<PrismaPrintJob> {
     const printJob = await this.prisma.printJob.create({
       data: { printerId, payload: payload as unknown as Prisma.InputJsonValue },
       include: { printer: true },
     });
     this.eventsGateway.emitPrintJob(restaurantId, printJob);
+    return printJob;
   }
 
   private async isPrintingActive(restaurantId: string): Promise<boolean> {

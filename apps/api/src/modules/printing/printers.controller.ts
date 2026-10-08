@@ -10,6 +10,7 @@ import { requireRestaurantId } from "../../common/require-restaurant-id";
 import type { RequestUser } from "../../common/types/request-user.type";
 import { CreatePrinterDto } from "./dto/create-printer.dto";
 import { UpdatePrinterDto } from "./dto/update-printer.dto";
+import { PrintJobsService } from "./print-jobs.service";
 import { PrintersService } from "./printers.service";
 
 class UpdatePrinterHeartbeatDto {
@@ -23,7 +24,10 @@ class UpdatePrinterHeartbeatDto {
 @RequiresModule(Module.PRINTING)
 @Controller("printers")
 export class PrintersController {
-  constructor(private readonly printersService: PrintersService) {}
+  constructor(
+    private readonly printersService: PrintersService,
+    private readonly printJobsService: PrintJobsService,
+  ) {}
 
   @Get()
   findAll(@CurrentUser() user: RequestUser) {
@@ -48,6 +52,11 @@ export class PrintersController {
   @Patch(":id/status")
   updateHeartbeat(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: UpdatePrinterHeartbeatDto) {
     return this.printersService.updateHeartbeat(requireRestaurantId(user), id, dto.status);
+  }
+
+  @Post(":id/test-print")
+  testPrint(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.printJobsService.enqueueTestPrint(requireRestaurantId(user), id);
   }
 
   @Delete(":id")
