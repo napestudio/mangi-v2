@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { OrderType, toPriceType } from "@mangiar/shared";
+import { OrderStatus, OrderType, toPriceType } from "@mangiar/shared";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeftRight, Minus, Plus, Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,18 +37,30 @@ export function OrderDetailPanel({
   const [staged, setStaged] = useState<StagedItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMovePicker, setShowMovePicker] = useState(false);
-  const [pendingRemoveItemId, setPendingRemoveItemId] = useState<string | null>(null);
+  const [pendingRemoveItemId, setPendingRemoveItemId] = useState<string | null>(
+    null,
+  );
+  const [pendingStockRestoreItemId, setPendingStockRestoreItemId] = useState<
+    string | null
+  >(null);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [confirmingCancelStockRestore, setConfirmingCancelStockRestore] =
+    useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const addItems = useMutation({
     mutationFn: async () => {
-      const { data } = await apiClient.post<ApiEnvelope<OrderView>>(`/orders/${order.id}/items`, {
-        items: staged.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          notes: item.notes,
-          unitPrice: item.unitPrice,
-        })),
-      });
+      const { data } = await apiClient.post<ApiEnvelope<OrderView>>(
+        `/orders/${order.id}/items`,
+        {
+          items: staged.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            notes: item.notes,
+            unitPrice: item.unitPrice,
+          })),
+        },
+      );
       return data.data;
     },
     onSuccess: (updated) => {
@@ -58,14 +70,41 @@ export function OrderDetailPanel({
   });
 
   const removeItem = useMutation({
-    mutationFn: async (itemId: string) => {
-      const { data } = await apiClient.delete<ApiEnvelope<OrderView>>(`/orders/${order.id}/items/${itemId}`);
+    mutationFn: async ({
+      itemId,
+      restoreStock,
+    }: {
+      itemId: string;
+      restoreStock: boolean;
+    }) => {
+      const { data } = await apiClient.delete<ApiEnvelope<OrderView>>(
+        `/orders/${order.id}/items/${itemId}`,
+        {
+          params: { restoreStock },
+        },
+      );
       return data.data;
     },
     onSuccess: (updated) => {
       onOrderUpdated(updated);
       setPendingRemoveItemId(null);
+      setPendingStockRestoreItemId(null);
     },
+  });
+
+  const cancelOrder = useMutation({
+    mutationFn: async (restoreStock: boolean) => {
+      const { data } = await apiClient.patch<ApiEnvelope<OrderView>>(
+        `/orders/${order.id}/status`,
+        {
+          status: OrderStatus.CANCELED,
+          restoreStock,
+          cancelReason: cancelReason.trim() || undefined,
+        },
+      );
+      return data.data;
+    },
+    onSuccess: () => onOrderClosed(order.id),
   });
 
   const removeEmptyOrder = useMutation({
@@ -88,32 +127,69 @@ export function OrderDetailPanel({
     setStaged((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
-        return prev.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item));
+        return prev.map((item) =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        );
       }
-      return [...prev, { tempId: crypto.randomUUID(), productId: product.id, name: product.name, quantity: 1, unitPrice }];
+      return [
+        ...prev,
+        {
+          tempId: crypto.randomUUID(),
+          productId: product.id,
+          name: product.name,
+          quantity: 1,
+          unitPrice,
+        },
+      ];
     });
   }
 
   function changeStagedQuantity(tempId: string, delta: number) {
     setStaged((prev) =>
-      prev.map((item) => (item.tempId === tempId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item)),
+      prev.map((item) =>
+        item.tempId === tempId
+          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
+          : item,
+      ),
     );
   }
 
   function changeStagedPrice(tempId: string, unitPrice: number) {
-    setStaged((prev) => prev.map((item) => (item.tempId === tempId ? { ...item, unitPrice } : item)));
+    setStaged((prev) =>
+      prev.map((item) =>
+        item.tempId === tempId ? { ...item, unitPrice } : item,
+      ),
+    );
   }
 
   function changeStagedNotes(tempId: string, notes: string | undefined) {
-    setStaged((prev) => prev.map((item) => (item.tempId === tempId ? { ...item, notes } : item)));
+    setStaged((prev) =>
+      prev.map((item) => (item.tempId === tempId ? { ...item, notes } : item)),
+    );
   }
 
   function removeStaged(tempId: string) {
     setStaged((prev) => prev.filter((item) => item.tempId !== tempId));
   }
 
-  const stagedTotal = staged.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  function requestRemove(item: OrderView["items"][number]) {
+    if (item.sentToKitchen) {
+      setPendingRemoveItemId(item.id);
+    } else if (item.stockDeducted) {
+      setPendingStockRestoreItemId(item.id);
+    } else {
+      removeItem.mutate({ itemId: item.id, restoreStock: false });
+    }
+  }
+
+  const stagedTotal = staged.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0,
+  );
   const hasConfirmedItems = order.items.length > 0;
+  const hasStockToRestore = order.items.some((item) => item.stockDeducted);
   const priceType = toPriceType(order.type);
   const canMoveTable = order.type === OrderType.DINE_IN && !!order.tableId;
 
@@ -133,7 +209,11 @@ export function OrderDetailPanel({
   if (showCheckout) {
     return (
       <div className={cn("overflow-y-auto", className)}>
-        <CloseTableCheckout order={order} onCancel={() => setShowCheckout(false)} onClosed={() => onOrderClosed(order.id)} />
+        <CloseTableCheckout
+          order={order}
+          onCancel={() => setShowCheckout(false)}
+          onClosed={() => onOrderClosed(order.id)}
+        />
       </div>
     );
   }
@@ -165,7 +245,9 @@ export function OrderDetailPanel({
       </div>
 
       <div className="shrink-0">
-        <p className="mb-1.5 text-xs font-medium uppercase text-neutral-500">Adicionar</p>
+        <p className="mb-1.5 text-xs font-medium uppercase text-neutral-500">
+          Adicionar
+        </p>
         <ProductSearchCombobox
           priceType={priceType}
           onSelect={addStaged}
@@ -179,8 +261,13 @@ export function OrderDetailPanel({
         {staged.length > 0 && (
           <div className="flex flex-col gap-3">
             {staged.map((item) => (
-              <div key={item.tempId} className="rounded-md border border-neutral-200 p-3">
-                <p className="truncate text-sm font-medium text-neutral-900">{item.name}</p>
+              <div
+                key={item.tempId}
+                className="rounded-md border border-neutral-200 p-3"
+              >
+                <p className="truncate text-sm font-medium text-neutral-900">
+                  {item.name}
+                </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-1">
                     <Button
@@ -192,7 +279,9 @@ export function OrderDetailPanel({
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </Button>
-                    <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                    <span className="w-6 text-center text-sm font-medium">
+                      {item.quantity}
+                    </span>
                     <Button
                       type="button"
                       size="sm"
@@ -209,11 +298,19 @@ export function OrderDetailPanel({
                       type="number"
                       min={0}
                       value={item.unitPrice}
-                      onChange={(event) => changeStagedPrice(item.tempId, Number(event.target.value))}
+                      onChange={(event) =>
+                        changeStagedPrice(
+                          item.tempId,
+                          Number(event.target.value),
+                        )
+                      }
                       className="h-8 w-20 px-2 text-sm"
                     />
                   </div>
-                  <NoteEditor value={item.notes} onChange={(notes) => changeStagedNotes(item.tempId, notes)} />
+                  <NoteEditor
+                    value={item.notes}
+                    onChange={(notes) => changeStagedNotes(item.tempId, notes)}
+                  />
                   <button
                     type="button"
                     onClick={() => removeStaged(item.tempId)}
@@ -235,16 +332,26 @@ export function OrderDetailPanel({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-1">
-                      <p className="truncate text-sm font-medium text-neutral-900">{item.name}</p>
-                      <span className="shrink-0 text-xs font-medium text-neutral-500">x{item.quantity}</span>
+                      <p className="truncate text-sm font-medium text-neutral-900">
+                        {item.name}
+                      </p>
+                      <span className="shrink-0 text-xs font-medium text-neutral-500">
+                        x{item.quantity}
+                      </span>
                     </div>
-                    {item.notes && <p className="text-xs italic text-neutral-500">Nota: {item.notes}</p>}
+                    {item.notes && (
+                      <p className="text-xs italic text-neutral-500">
+                        Nota: {item.notes}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900">{formatPrice(Number(item.totalPrice))}</span>
+                    <span className="text-sm font-medium text-neutral-900">
+                      {formatPrice(Number(item.totalPrice))}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => (item.sentToKitchen ? setPendingRemoveItemId(item.id) : removeItem.mutate(item.id))}
+                      onClick={() => requestRemove(item)}
                       aria-label="Eliminar producto"
                       className="rounded-md p-1 text-red-600 hover:bg-red-50"
                     >
@@ -254,16 +361,67 @@ export function OrderDetailPanel({
                 </div>
                 {pendingRemoveItemId === item.id && (
                   <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-neutral-600">Ya fue comandado. ¿Eliminarlo igual?</span>
+                    <span className="text-neutral-600">
+                      Ya fue comandado. ¿Eliminarlo igual?
+                    </span>
                     <div className="flex shrink-0 items-center gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setPendingRemoveItemId(null)}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPendingRemoveItemId(null)}
+                      >
                         No
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
                         disabled={removeItem.isPending}
-                        onClick={() => removeItem.mutate(item.id)}
+                        onClick={() => {
+                          if (item.stockDeducted) {
+                            setPendingRemoveItemId(null);
+                            setPendingStockRestoreItemId(item.id);
+                          } else {
+                            removeItem.mutate({
+                              itemId: item.id,
+                              restoreStock: false,
+                            });
+                          }
+                        }}
+                      >
+                        Sí
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {pendingStockRestoreItemId === item.id && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-neutral-600">
+                      ¿Reponer el stock descontado de este producto?
+                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={removeItem.isPending}
+                        onClick={() =>
+                          removeItem.mutate({
+                            itemId: item.id,
+                            restoreStock: false,
+                          })
+                        }
+                      >
+                        No
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={removeItem.isPending}
+                        onClick={() =>
+                          removeItem.mutate({
+                            itemId: item.id,
+                            restoreStock: true,
+                          })
+                        }
                       >
                         Sí
                       </Button>
@@ -279,15 +437,33 @@ export function OrderDetailPanel({
       {staged.length > 0 ? (
         <div className="flex shrink-0 flex-col gap-3 border-t border-neutral-200 pt-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-neutral-500">Total a confirmar:</span>
-            <span className="text-lg font-semibold text-neutral-900">{formatPrice(stagedTotal)}</span>
+            <span className="text-sm font-medium text-neutral-500">
+              Total a confirmar:
+            </span>
+            <span className="text-lg font-semibold text-neutral-900">
+              {formatPrice(stagedTotal)}
+            </span>
           </div>
-          {addItems.isError && <p className="text-sm text-red-600">No se pudieron agregar los productos.</p>}
+          {addItems.isError && (
+            <p className="text-sm text-red-600">
+              No se pudieron agregar los productos.
+            </p>
+          )}
           <div className="flex gap-2">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setStaged([])}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="flex-1"
+              onClick={() => setStaged([])}
+            >
               Cancelar
             </Button>
-            <Button type="button" className="flex-1" disabled={addItems.isPending} onClick={() => addItems.mutate()}>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={addItems.isPending}
+              onClick={() => addItems.mutate()}
+            >
               Confirmar
             </Button>
           </div>
@@ -296,11 +472,24 @@ export function OrderDetailPanel({
         <div className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 pt-3">
           {hasConfirmedItems && (
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-neutral-900">Total:</span>
-              <span className="text-lg font-semibold text-neutral-900">{formatPrice(Number(order.total))}</span>
+              <span className="text-sm font-semibold text-neutral-900">
+                Total:
+              </span>
+              <span className="text-lg font-semibold text-neutral-900">
+                {formatPrice(Number(order.total))}
+              </span>
             </div>
           )}
-          {removeEmptyOrder.isError && <p className="text-sm text-red-600">No se pudo eliminar el pedido.</p>}
+          {removeEmptyOrder.isError && (
+            <p className="text-sm text-red-600">
+              No se pudo eliminar el pedido.
+            </p>
+          )}
+          {cancelOrder.isError && (
+            <p className="text-sm text-red-600">
+              No se pudo cancelar el pedido.
+            </p>
+          )}
           {!hasConfirmedItems ? (
             <Button
               type="button"
@@ -311,10 +500,91 @@ export function OrderDetailPanel({
             >
               Eliminar Orden Vacia
             </Button>
+          ) : confirmingCancelStockRestore ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-neutral-600">
+                ¿Reponer el stock descontado de los productos de este pedido?
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1"
+                  disabled={cancelOrder.isPending}
+                  onClick={() => cancelOrder.mutate(false)}
+                >
+                  No
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="flex-1"
+                  disabled={cancelOrder.isPending}
+                  onClick={() => cancelOrder.mutate(true)}
+                >
+                  Sí
+                </Button>
+              </div>
+            </div>
+          ) : confirmingCancel ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-neutral-600">
+                ¿Cancelar este pedido? Esta acción no se puede deshacer.
+              </p>
+              <textarea
+                autoFocus
+                rows={2}
+                value={cancelReason}
+                onChange={(event) => setCancelReason(event.target.value)}
+                placeholder="Motivo de la cancelación (opcional)"
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => {
+                    setConfirmingCancel(false);
+                    setCancelReason("");
+                  }}
+                >
+                  No
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="flex-1"
+                  disabled={cancelOrder.isPending}
+                  onClick={() => {
+                    if (hasStockToRestore) {
+                      setConfirmingCancel(false);
+                      setConfirmingCancelStockRestore(true);
+                    } else {
+                      cancelOrder.mutate(false);
+                    }
+                  }}
+                >
+                  Sí, cancelar
+                </Button>
+              </div>
+            </div>
           ) : (
-            <Button type="button" className="h-12 text-base" onClick={() => setShowCheckout(true)}>
-              Finalizar Venta
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-12  text-base"
+                onClick={() => setConfirmingCancel(true)}
+              ></Button>
+              <Button
+                type="button"
+                className="h-12 flex-1 text-base"
+                onClick={() => setShowCheckout(true)}
+              >
+                Finalizar Venta
+              </Button>
+            </div>
           )}
         </div>
       )}

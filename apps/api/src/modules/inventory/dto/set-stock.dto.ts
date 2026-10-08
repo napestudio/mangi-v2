@@ -9,7 +9,7 @@ export class SetStockDto {
   @Min(0)
   stock!: number;
 
-  @IsString() reason!: string;
+  @IsOptional() @IsString() reason?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() reference?: string;
   @IsOptional() @IsString() attributedToId?: string;

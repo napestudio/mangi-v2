@@ -16,13 +16,20 @@ interface SidePanelProps {
 
 export function SidePanel({ open, onClose, title, children, className, bodyClassName }: SidePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // "Latest ref" para `onClose`: la mayoría de los callers pasan una función nueva en cada render
+  // (ej. `panel.close` de `useSidePanel`, que no está memoizada). Si `onClose` fuera dependencia del
+  // effect de abajo, cada tecleo en un input dentro del panel re-dispara el effect y `.focus()` le
+  // roba el foco al input — bug real, no hipotético (reportado al tipear en el form de alta de
+  // productos). Depender solo de `open` evita eso sin tener que tocar cada pantalla que usa SidePanel.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
       }
     }
 
@@ -30,7 +37,7 @@ export function SidePanel({ open, onClose, title, children, className, bodyClass
     panelRef.current?.focus();
 
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

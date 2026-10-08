@@ -1,10 +1,12 @@
 import { Module } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
+import { InventoryModule } from "../inventory/inventory.module";
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { ProductsController } from "./products.controller";
 import { ProductsService } from "./products.service";
 
 @Module({
-  imports: [PassportModule.register({})],
+  imports: [PassportModule.register({}), InventoryModule, SubscriptionsModule],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

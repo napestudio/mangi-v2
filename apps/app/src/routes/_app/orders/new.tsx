@@ -22,10 +22,14 @@ import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 import { formatPrice } from "@/lib/currency";
 import { ORDER_TYPE_LABELS } from "@/lib/labels";
+import { isProductAvailable } from "@/lib/stock";
 
 interface ProductOption {
   id: string;
   name: string;
+  trackStock: boolean;
+  stock: string;
+  comboComponents: { quantity: string; component: { trackStock: boolean; stock: string } }[];
 }
 
 interface DeliveryZoneOption {
@@ -233,8 +237,9 @@ function NewOrderPage() {
                   >
                     <option value="">Seleccioná un producto</option>
                     {products?.map((product) => (
-                      <option key={product.id} value={product.id}>
+                      <option key={product.id} value={product.id} disabled={!isProductAvailable(product, 1)}>
                         {product.name}
+                        {!isProductAvailable(product, 1) ? " (Sin stock)" : ""}
                       </option>
                     ))}
                   </select>

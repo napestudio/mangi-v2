@@ -7,7 +7,13 @@ export const productPriceSchema = z.object({
 });
 export type ProductPricePayload = z.infer<typeof productPriceSchema>;
 
-export const createProductSchema = z.object({
+export const productComponentSchema = z.object({
+  componentId: z.string(),
+  quantity: z.number().positive(),
+});
+export type ProductComponentPayload = z.infer<typeof productComponentSchema>;
+
+const createProductBaseSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   image: z.string().url().optional(),
@@ -19,13 +25,34 @@ export const createProductSchema = z.object({
   isActive: z.boolean().default(true),
   isCombo: z.boolean().default(false),
   trackStock: z.boolean().default(false),
+  stock: z.number().nonnegative().optional(),
   minStock: z.number().nonnegative().optional(),
   maxStock: z.number().nonnegative().optional(),
   tags: z.array(z.nativeEnum(ProductTag)).default([]),
   sortOrder: z.number().int().default(0),
   prices: z.array(productPriceSchema).min(1),
+  components: z.array(productComponentSchema).default([]),
 });
-export type CreateProductPayload = z.infer<typeof createProductSchema>;
 
-export const updateProductSchema = createProductSchema.partial();
+function validateComponents(data: { isCombo: boolean; components: { componentId: string }[] }, ctx: z.RefinementCtx) {
+  if (data.isCombo && data.components.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["components"], message: "Un combo necesita al menos un componente" });
+  }
+  if (!data.isCombo && data.components.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["components"], message: "Solo un combo puede tener componentes" });
+  }
+  const ids = data.components.map((c) => c.componentId);
+  if (new Set(ids).size !== ids.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["components"], message: "Un componente no puede repetirse" });
+  }
+}
+
+export const createProductSchema = createProductBaseSchema.superRefine(validateComponents);
+export type CreateProductPayload = z.infer<typeof createProductBaseSchema>;
+
+export const updateProductSchema = createProductBaseSchema.partial().superRefine((data, ctx) => {
+  if (data.isCombo && data.components && data.components.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["components"], message: "Un combo necesita al menos un componente" });
+  }
+});
 export type UpdateProductPayload = z.infer<typeof updateProductSchema>;

@@ -29,6 +29,7 @@ enum Module {
   ANALYTICS
   EXPENSES
   PRINTING
+  INGREDIENTS
 }
 
 enum ExpenseCategory {
@@ -859,6 +860,7 @@ model OrderItem {
   totalPrice    Decimal @db.Decimal(10, 2)
   notes         String?
   sentToKitchen Boolean @default(false)
+  stockDeducted Boolean @default(false)
 
   modifiers OrderItemModifier[]
 

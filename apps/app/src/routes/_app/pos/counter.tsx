@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 import { formatPrice } from "@/lib/currency";
+import { isProductAvailable } from "@/lib/stock";
 import { cn } from "@/lib/utils";
 
 interface ProductPrice {
@@ -20,6 +21,9 @@ interface ProductOption {
   isActive: boolean;
   category: { id: string; name: string } | null;
   prices: ProductPrice[];
+  trackStock: boolean;
+  stock: string;
+  comboComponents: { quantity: string; component: { trackStock: boolean; stock: string } }[];
 }
 
 interface CartItem {
@@ -128,6 +132,8 @@ function CounterPosPage() {
   function addToCart(product: ProductOption) {
     const price = product.prices.find((p) => p.type === "TAKE_AWAY");
     if (!price) return;
+    const cartQuantity = cart.find((item) => item.productId === product.id)?.quantity ?? 0;
+    if (!isProductAvailable(product, cartQuantity + 1)) return;
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
@@ -246,19 +252,29 @@ function CounterPosPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {visibleProducts.map((product) => {
               const price = product.prices.find((p) => p.type === "TAKE_AWAY")!;
+              const cartQuantity = cart.find((item) => item.productId === product.id)?.quantity ?? 0;
+              const available = isProductAvailable(product, cartQuantity + 1);
               return (
                 <button
                   key={product.id}
                   type="button"
+                  disabled={!available}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-start gap-1 rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm transition hover:border-neutral-400 hover:shadow active:scale-[0.98]"
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-lg border border-neutral-200 bg-white p-3 text-left shadow-sm transition hover:border-neutral-400 hover:shadow active:scale-[0.98]",
+                    !available && "cursor-not-allowed opacity-40 hover:border-neutral-200 hover:shadow-sm active:scale-100",
+                  )}
                 >
                   <span className="text-sm font-medium text-neutral-900">
                     {product.name}
                   </span>
-                  <span className="text-sm text-neutral-500">
-                    {formatPrice(price.price)}
-                  </span>
+                  {available ? (
+                    <span className="text-sm text-neutral-500">
+                      {formatPrice(price.price)}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium text-red-600">Sin stock</span>
+                  )}
                 </button>
               );
             })}
@@ -285,50 +301,55 @@ function CounterPosPage() {
             </p>
           )}
           <div className="flex flex-col gap-2">
-            {cart.map((item) => (
-              <div
-                key={item.productId}
-                className="flex items-center justify-between gap-2 border-b border-neutral-100 pb-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-neutral-900">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    {formatPrice(item.unitPrice)} c/u
-                  </p>
+            {cart.map((item) => {
+              const product = products?.find((candidate) => candidate.id === item.productId);
+              const canIncrement = !product || isProductAvailable(product, item.quantity + 1);
+              return (
+                <div
+                  key={item.productId}
+                  className="flex items-center justify-between gap-2 border-b border-neutral-100 pb-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-neutral-900">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {formatPrice(item.unitPrice)} c/u
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      onClick={() => changeQuantity(item.productId, -1)}
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="w-6 text-center text-sm font-medium">
+                      {item.quantity}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      disabled={!canIncrement}
+                      onClick={() => changeQuantity(item.productId, 1)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-red-600"
+                      onClick={() => removeFromCart(item.productId)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    onClick={() => changeQuantity(item.productId, -1)}
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </Button>
-                  <span className="w-6 text-center text-sm font-medium">
-                    {item.quantity}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    onClick={() => changeQuantity(item.productId, 1)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-red-600"
-                    onClick={() => removeFromCart(item.productId)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
