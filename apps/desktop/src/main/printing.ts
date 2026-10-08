@@ -1,3 +1,4 @@
+import { connect as netConnect } from "net";
 import { BrowserWindow } from "electron";
 import { PrinterTypes, ThermalPrinter } from "node-thermal-printer";
 
@@ -26,6 +27,7 @@ interface KitchenPayload {
 interface ReceiptPayload {
   type: "receipt";
   orderId: string;
+  orderCode: string;
   items: PrintJobItem[];
   subtotal: string;
   discountAmount: string;
@@ -86,23 +88,62 @@ async function printNetwork(printJob: IncomingPrintJob): Promise<void> {
   if (!printerRef.ipAddress) {
     throw new Error("Printer has no IP address configured");
   }
+  const port = printerRef.port ?? 9100;
 
   const printer = new ThermalPrinter({
     type: PrinterTypes.EPSON,
-    interface: `tcp://${printerRef.ipAddress}:${printerRef.port ?? 9100}`,
+    interface: `tcp://${printerRef.ipAddress}:${port}`,
     width: charsPerLine(printerRef.paperWidth ?? 80),
   });
 
   const connected = await printer.isPrinterConnected();
   if (!connected) {
-    throw new Error(`Could not connect to printer at ${printerRef.ipAddress}:${printerRef.port ?? 9100}`);
+    throw new Error(`Could not connect to printer at ${printerRef.ipAddress}:${port}`);
   }
 
   for (let copy = 0; copy < (printerRef.copies ?? 1); copy++) {
     printer.clear();
     buildTicket(printer, printJob);
-    await printer.execute();
+    const buffer = printer.getBuffer();
+    if (!buffer) continue;
+    // No usamos `printer.execute()` a propósito: la librería escribe el buffer y cierra la
+    // conexión con `socket.destroy()` apenas el write local termina, sin esperar a que la
+    // impresora lo haya leído — si estuvo inactiva un rato y su stack de red está "despertando",
+    // eso trunca el ticket en silencio y el job igual queda CONFIRMED. `sendBufferToNetworkPrinter`
+    // hace un cierre prolijo (`socket.end()` + esperar `close`) para no perder datos en ese caso.
+    // Ver mangiar-printing SKILL.md.
+    await sendBufferToNetworkPrinter(printerRef.ipAddress, port, buffer);
   }
+}
+
+function sendBufferToNetworkPrinter(host: string, port: number, buffer: Buffer, timeoutMs = 5000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const socket = netConnect({ host, port, timeout: timeoutMs });
+    let settled = false;
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      socket.removeAllListeners();
+      socket.destroy();
+      if (error) reject(error);
+      else resolve();
+    };
+
+    socket.on("connect", () => {
+      socket.write(buffer, (writeError) => {
+        if (writeError) {
+          finish(writeError instanceof Error ? writeError : new Error(String(writeError)));
+          return;
+        }
+        socket.end();
+      });
+    });
+
+    socket.on("close", () => finish());
+    socket.on("error", (error) => finish(error));
+    socket.on("timeout", () => finish(new Error(`Socket timeout writing to ${host}:${port}`)));
+  });
 }
 
 function buildTicket(printer: ThermalPrinter, printJob: IncomingPrintJob): void {
@@ -141,6 +182,7 @@ function buildTicket(printer: ThermalPrinter, printJob: IncomingPrintJob): void 
   } else if (payload.type === "receipt") {
     printer.bold(true);
     printer.println("RECIBO");
+    printer.println(payload.orderCode);
     printer.bold(false);
     for (const item of payload.items) {
       printer.leftRight(`${item.quantity}x ${item.name}`, `$${item.totalPrice ?? ""}`);
@@ -249,7 +291,7 @@ function renderTicketHtml(printJob: IncomingPrintJob): string {
          <hr/>
          <div style="font-weight:bold">${escapeHtml(payload.orderCode)}</div>
          <div>${escapeHtml(kitchenOrderContextLine(payload))}</div>`
-      : `<div style="font-weight:bold">RECIBO</div>`;
+      : `<div style="font-weight:bold">RECIBO</div><div>${escapeHtml(payload.orderCode)}</div>`;
 
   return `<!doctype html><html><head><meta charset="utf-8"><style>
     body { width: ${widthMm}mm; font-family: monospace; font-size: 12px; margin: 0; padding: 4px; }

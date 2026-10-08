@@ -76,8 +76,13 @@ export class PrintJobsService {
   async enqueueReceipt(restaurantId: string, orderId: string): Promise<void> {
     if (!(await this.isPrintingActive(restaurantId))) return;
 
-    const order = await this.prisma.order.findFirst({ where: { id: orderId, restaurantId }, include: { items: true } });
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, restaurantId },
+      include: { items: true, restaurant: { select: { name: true } } },
+    });
     if (!order) return;
+
+    const orderCode = buildOrderCode(order.restaurant.name, order.type as unknown as OrderType, order.orderNumber);
 
     const printers = await this.prisma.printer.findMany({
       where: { restaurantId, isActive: true, printMode: { in: ["FULL_ORDER", "BOTH"] } },
@@ -87,6 +92,7 @@ export class PrintJobsService {
       await this.createAndEmit(restaurantId, printer.id, {
         type: "receipt",
         orderId: order.id,
+        orderCode,
         items: order.items.map((item) => ({
           name: item.name,
           quantity: item.quantity,
@@ -119,7 +125,10 @@ export class PrintJobsService {
   }
 
   async updateStatus(restaurantId: string, id: string, dto: UpdatePrintJobStatusDto): Promise<PrismaPrintJob> {
-    const printJob = await this.prisma.printJob.findFirst({ where: { id, printer: { restaurantId } } });
+    const printJob = await this.prisma.printJob.findFirst({
+      where: { id, printer: { restaurantId } },
+      include: { printer: true },
+    });
     if (!printJob) {
       throw new NotFoundException("Print job not found");
     }
@@ -138,11 +147,24 @@ export class PrintJobsService {
     // La prueba de impresión es la única acción de la UI que espera una respuesta de "¿la impresora
     // anda?" en tiempo real, así que es el único caso donde un resultado de PrintJob retroalimenta
     // Printer.status — un ticket de cocina/recibo normal no lo toca (ver mangiar-printing SKILL.md).
-    const payload = printJob.payload as { type?: string } | null;
+    const payload = printJob.payload as { type?: string; stationName?: string; orderCode?: string } | null;
     if (payload?.type === "test" && (dto.status === "CONFIRMED" || dto.status === "FAILED")) {
       await this.prisma.printer.update({
         where: { id: printJob.printerId },
         data: { status: dto.status === "CONFIRMED" ? "ONLINE" : "ERROR" },
+      });
+    }
+
+    // Un ticket de cocina/recibo real que falla era 100% silencioso hasta ahora — el mozo no tiene
+    // forma de saber que no salió, y puede no estar cerca de la impresora para notar el problema a
+    // simple vista. Avisamos por socket a cualquier pantalla conectada del restaurante (la prueba de
+    // impresión no entra acá: ya tiene su propio aviso vía polling en el frontend).
+    if (dto.status === "FAILED" && (payload?.type === "kitchen" || payload?.type === "receipt")) {
+      const what = payload.type === "kitchen" ? `la comanda de ${payload.stationName ?? "cocina"}` : "el recibo";
+      const order = payload.orderCode ? ` (${payload.orderCode})` : "";
+      const reason = dto.errorMessage ? ` — ${dto.errorMessage}` : "";
+      this.eventsGateway.emitPrintJobFailed(restaurantId, {
+        message: `No se pudo imprimir ${what}${order} en "${printJob.printer.name}"${reason}`,
       });
     }
 

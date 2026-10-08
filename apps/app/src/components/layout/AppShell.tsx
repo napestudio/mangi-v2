@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Module } from "@mangiar/shared";
 import { Logo } from "@/components/ui/logo";
+import { useToast } from "@/components/ui/toast";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { useCurrentUser, useLogout } from "@/hooks/useAuth";
 import { useModules } from "@/hooks/useModules";
@@ -83,6 +84,12 @@ export function AppShell() {
   const matchRoute = useMatchRoute();
   const navigate = useNavigate();
   const logout = useLogout();
+  // Desestructurado a propósito: `show` está memoizado con `useCallback` en ToastProvider y es
+  // referencialmente estable entre renders, a diferencia del objeto `{ show, dismiss }` que
+  // devuelve `useToast()` completo (ese sí cambia de identidad en cada render de ToastProvider,
+  // ej. cada vez que aparece/desaparece CUALQUIER toast en la app) — necesario para poder listarlo
+  // en el array de deps del efecto de abajo sin re-disparar la suscripción al socket en cada toast.
+  const { show: showToast } = useToast();
   const visibleNavItems = NAV_ITEMS.filter(
     (item) => !item.module || hasModule(item.module),
   );
@@ -118,12 +125,21 @@ export function AppShell() {
       const accessToken = useAuthStore.getState().accessToken;
       void window.electron?.print?.job(printJob, accessToken);
     };
+    // No es parte del puente con Electron — este evento solo le avisa a CUALQUIER pantalla
+    // conectada que un ticket real (no una prueba, que ya tiene su propio aviso) falló, para que el
+    // mozo se entere sin tener que estar parado al lado de la impresora física (ver mangiar-printing
+    // SKILL.md).
+    const handlePrintJobFailed = ({ message }: { message: string }) => {
+      showToast({ message, variant: "error", duration: 8000 });
+    };
     socket.on("print:job", handlePrintJob);
+    socket.on("print:job_failed", handlePrintJobFailed);
 
     return () => {
       socket.off("print:job", handlePrintJob);
+      socket.off("print:job_failed", handlePrintJobFailed);
     };
-  }, [restaurant?.id]);
+  }, [restaurant?.id, showToast]);
 
   return (
     <div className="flex h-screen flex-col bg-neutral-50">

@@ -136,6 +136,7 @@ function SalonPage() {
               canvasHeight={selectedSector.canvasHeight ?? 600}
               tables={tables ?? []}
               onTableClick={panel.open}
+              selectedTableId={liveSelected?.id ?? null}
             />
           )}
 
@@ -177,6 +178,7 @@ function SalonPage() {
                 </div>
               ) : (
                 <ActiveOrderPanel
+                  key={liveSelected.id}
                   table={liveSelected}
                   onClosePanel={panel.close}
                   className="flex-1 min-h-0"

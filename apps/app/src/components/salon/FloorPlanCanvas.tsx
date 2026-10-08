@@ -29,6 +29,8 @@ interface FloorPlanCanvasProps {
   editable?: boolean;
   /** Si es false, las mesas se ven neutras (sin color por estado ni cantidad de pedidos). Default true. */
   showStatus?: boolean;
+  /** Mesa con el panel abierto actualmente — se destaca con un anillo para distinguirla rápido. */
+  selectedTableId?: string | null;
 }
 
 export const STATUS_STYLES: Record<TableStatus, string> = {
@@ -37,6 +39,15 @@ export const STATUS_STYLES: Record<TableStatus, string> = {
   [TableStatus.RESERVED]: "border-amber-400 bg-amber-100 text-amber-900",
   [TableStatus.CLEANING]: "border-sky-400 bg-sky-100 text-sky-900",
   [TableStatus.PAYING]: "border-violet-400 bg-violet-100 text-violet-900",
+};
+
+/** Mismo tono que STATUS_STYLES pero como ring, para destacar la mesa seleccionada sin taparle el color de estado. */
+const STATUS_RING_STYLES: Record<TableStatus, string> = {
+  [TableStatus.EMPTY]: "ring-emerald-500",
+  [TableStatus.OCCUPIED]: "ring-red-500",
+  [TableStatus.RESERVED]: "ring-amber-500",
+  [TableStatus.CLEANING]: "ring-sky-500",
+  [TableStatus.PAYING]: "ring-violet-500",
 };
 
 const NEUTRAL_TABLE_STYLE =
@@ -61,6 +72,7 @@ export function FloorPlanCanvas({
   onTableMoved,
   editable = false,
   showStatus = true,
+  selectedTableId = null,
 }: FloorPlanCanvasProps) {
   const [positions, setPositions] = useState<
     Record<string, { x: number; y: number }>
@@ -162,6 +174,8 @@ export function FloorPlanCanvas({
                 : "cursor-pointer",
               table.shape === TableShape.CIRCLE ? "rounded-full" : "rounded-md",
               showStatus ? STATUS_STYLES[table.status] : NEUTRAL_TABLE_STYLE,
+              table.id === selectedTableId &&
+                cn("z-10 ring-[3px] ring-offset-2 ring-offset-neutral-50", STATUS_RING_STYLES[table.status]),
             )}
             style={{
               left: pos.x,
