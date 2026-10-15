@@ -27,6 +27,7 @@ import { Route as AppPosCounterRouteImport } from './routes/_app/pos/counter'
 import { Route as AppReservationsIndexRouteImport } from './routes/_app/reservations/index'
 import { Route as AppReservationsNewRouteImport } from './routes/_app/reservations/new'
 import { Route as AppSalonIndexRouteImport } from './routes/_app/salon/index'
+import { Route as AppSettingsCashRouteImport } from './routes/_app/settings/cash'
 import { Route as AppSettingsDeliveryRouteImport } from './routes/_app/settings/delivery'
 import { Route as AppSettingsFiscalRouteImport } from './routes/_app/settings/fiscal'
 import { Route as AppSettingsMapRouteImport } from './routes/_app/settings/map'
@@ -127,6 +128,11 @@ const AppSalonIndexRoute = AppSalonIndexRouteImport.update({
   path: '/salon/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppSettingsCashRoute = AppSettingsCashRouteImport.update({
+  id: '/cash',
+  path: '/cash',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
 const AppSettingsDeliveryRoute = AppSettingsDeliveryRouteImport.update({
   id: '/delivery',
   path: '/delivery',
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/orders/new': typeof AppOrdersNewRoute
   '/pos/counter': typeof AppPosCounterRoute
   '/reservations/new': typeof AppReservationsNewRoute
+  '/settings/cash': typeof AppSettingsCashRoute
   '/settings/delivery': typeof AppSettingsDeliveryRoute
   '/settings/fiscal': typeof AppSettingsFiscalRoute
   '/settings/map': typeof AppSettingsMapRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/orders/new': typeof AppOrdersNewRoute
   '/pos/counter': typeof AppPosCounterRoute
   '/reservations/new': typeof AppReservationsNewRoute
+  '/settings/cash': typeof AppSettingsCashRoute
   '/settings/delivery': typeof AppSettingsDeliveryRoute
   '/settings/fiscal': typeof AppSettingsFiscalRoute
   '/settings/map': typeof AppSettingsMapRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/pos/counter': typeof AppPosCounterRoute
   '/_app/reservations/new': typeof AppReservationsNewRoute
+  '/_app/settings/cash': typeof AppSettingsCashRoute
   '/_app/settings/delivery': typeof AppSettingsDeliveryRoute
   '/_app/settings/fiscal': typeof AppSettingsFiscalRoute
   '/_app/settings/map': typeof AppSettingsMapRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/pos/counter'
     | '/reservations/new'
+    | '/settings/cash'
     | '/settings/delivery'
     | '/settings/fiscal'
     | '/settings/map'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/pos/counter'
     | '/reservations/new'
+    | '/settings/cash'
     | '/settings/delivery'
     | '/settings/fiscal'
     | '/settings/map'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/_app/orders/new'
     | '/_app/pos/counter'
     | '/_app/reservations/new'
+    | '/_app/settings/cash'
     | '/_app/settings/delivery'
     | '/_app/settings/fiscal'
     | '/_app/settings/map'
@@ -500,6 +512,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalonIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/settings/cash': {
+      id: '/_app/settings/cash'
+      path: '/cash'
+      fullPath: '/settings/cash'
+      preLoaderRoute: typeof AppSettingsCashRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
     '/_app/settings/delivery': {
       id: '/_app/settings/delivery'
       path: '/delivery'
@@ -594,6 +613,7 @@ const AppInventoryRouteRouteWithChildren =
   AppInventoryRouteRoute._addFileChildren(AppInventoryRouteRouteChildren)
 
 interface AppSettingsRouteRouteChildren {
+  AppSettingsCashRoute: typeof AppSettingsCashRoute
   AppSettingsDeliveryRoute: typeof AppSettingsDeliveryRoute
   AppSettingsFiscalRoute: typeof AppSettingsFiscalRoute
   AppSettingsMapRoute: typeof AppSettingsMapRoute
@@ -603,6 +623,7 @@ interface AppSettingsRouteRouteChildren {
 }
 
 const AppSettingsRouteRouteChildren: AppSettingsRouteRouteChildren = {
+  AppSettingsCashRoute: AppSettingsCashRoute,
   AppSettingsDeliveryRoute: AppSettingsDeliveryRoute,
   AppSettingsFiscalRoute: AppSettingsFiscalRoute,
   AppSettingsMapRoute: AppSettingsMapRoute,

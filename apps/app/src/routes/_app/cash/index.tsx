@@ -138,8 +138,6 @@ function CashPage() {
   const [newRegisterName, setNewRegisterName] = useState("");
   const [newRegisterSectorIds, setNewRegisterSectorIds] = useState<string[]>([]);
 
-  const [editName, setEditName] = useState("");
-  const [editSectorIds, setEditSectorIds] = useState<string[]>([]);
   const [prevSelected, setPrevSelected] = useState(panel.selected);
 
   const [openingAmount, setOpeningAmount] = useState("0");
@@ -151,8 +149,6 @@ function CashPage() {
   if (panel.selected !== prevSelected) {
     setPrevSelected(panel.selected);
     setActiveSessionId(panel.selected?.sessions[0]?.id ?? null);
-    setEditName(panel.selected?.name ?? "");
-    setEditSectorIds(panel.selected?.sectors.map((s) => s.sector.id) ?? []);
   }
 
   const { data: registers, isLoading } = useQuery({
@@ -189,15 +185,6 @@ function CashPage() {
       setCreatingRegister(false);
       setNewRegisterName("");
       setNewRegisterSectorIds([]);
-    },
-  });
-
-  const updateRegister = useMutation({
-    mutationFn: async () => {
-      await apiClient.patch(`/cash-registers/${panel.selected!.id}`, { name: editName, sectorIds: editSectorIds });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
     },
   });
 
@@ -246,14 +233,14 @@ function CashPage() {
     <div className="flex h-full flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-neutral-900">Cajas</h1>
-        {!creatingRegister && (
+        {registers && registers.length === 0 && !creatingRegister && (
           <Button size="sm" variant="outline" onClick={() => setCreatingRegister(true)}>
             <Plus className="h-4 w-4" /> Caja
           </Button>
         )}
       </div>
 
-      {creatingRegister && (
+      {registers && registers.length === 0 && creatingRegister && (
         <div className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3">
           <div className="flex items-end gap-2">
             <div className="flex flex-col gap-1.5">
@@ -304,44 +291,6 @@ function CashPage() {
       />
 
       <SidePanel open={panel.isOpen} onClose={panel.close} title={panel.selected?.name}>
-        {panel.selected && (
-          <div className="mb-4 flex flex-col gap-3 border-b border-neutral-200 pb-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="editRegisterName">Nombre</Label>
-              <Input id="editRegisterName" value={editName} onChange={(event) => setEditName(event.target.value)} />
-            </div>
-            {sectors && sectors.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <Label>Sectores</Label>
-                <div className="flex flex-wrap gap-2">
-                  {sectors.map((sector) => (
-                    <label key={sector.id} className="flex items-center gap-1.5 text-sm text-neutral-700">
-                      <input
-                        type="checkbox"
-                        checked={editSectorIds.includes(sector.id)}
-                        onChange={(event) =>
-                          setEditSectorIds((prev) =>
-                            event.target.checked ? [...prev, sector.id] : prev.filter((id) => id !== sector.id),
-                          )
-                        }
-                      />
-                      {sector.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-            <Button
-              size="sm"
-              className="self-start"
-              disabled={!editName.trim() || updateRegister.isPending}
-              onClick={() => updateRegister.mutate()}
-            >
-              Guardar
-            </Button>
-          </div>
-        )}
-
         {panel.selected && !activeSessionId && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-neutral-500">Esta caja está cerrada. Abrila para empezar a registrar movimientos.</p>
