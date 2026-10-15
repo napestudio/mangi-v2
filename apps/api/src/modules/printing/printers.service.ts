@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import type { Printer as PrismaPrinter } from "../../../generated/prisma/client";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma, type Printer as PrismaPrinter } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { CreatePrinterDto } from "./dto/create-printer.dto";
 import type { UpdatePrinterDto } from "./dto/update-printer.dto";
@@ -54,7 +54,9 @@ export class PrintersService {
         headerText: dto.headerText,
         footerText: dto.footerText,
         copies: dto.copies,
-        stationId: dto.stationId,
+        // "" desde el form de edición significa "sin estación" (desasignar) — un `undefined` real
+        // (campo ausente del PATCH) en cambio deja la estación actual sin tocar.
+        stationId: dto.stationId === "" ? null : dto.stationId,
         isActive: dto.isActive,
       },
     });
@@ -62,7 +64,16 @@ export class PrintersService {
 
   async remove(restaurantId: string, id: string): Promise<void> {
     await this.findOne(restaurantId, id);
-    await this.prisma.printer.delete({ where: { id } });
+    try {
+      await this.prisma.printer.delete({ where: { id } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        throw new ConflictException(
+          "No se puede eliminar esta impresora porque tiene trabajos de impresión asociados. Desactivala en su lugar.",
+        );
+      }
+      throw error;
+    }
   }
 
   async updateHeartbeat(

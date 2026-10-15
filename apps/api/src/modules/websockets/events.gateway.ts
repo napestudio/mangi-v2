@@ -108,6 +108,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(this.restaurantRoom(restaurantId)).emit("print:job", { printJob });
   }
 
+  emitPrintJobFailed(restaurantId: string, info: { message: string }): void {
+    this.server.to(this.restaurantRoom(restaurantId)).emit("print:job_failed", info);
+  }
+
   emitKitchenNewItems(restaurantId: string, items: unknown): void {
     this.server.to(this.restaurantRoom(restaurantId)).emit("kitchen:new_items", { items });
   }
