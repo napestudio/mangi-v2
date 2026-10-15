@@ -1,9 +1,14 @@
-import { useState } from "react";
-import { CashMovementType, Module, PaymentMethodExtended, UserRole } from "@mangiar/shared";
+import { useMemo, useState } from "react";
+import { computeExpectedByMethod, Module, type PaymentMethodExtended, UserRole } from "@mangiar/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
+import { isAxiosError } from "axios";
 import { Plus } from "lucide-react";
+import { MethodCountsTable } from "@/components/cash/MethodCountsTable";
+import { MovementsList } from "@/components/cash/MovementsList";
+import { PrintSessionButton } from "@/components/cash/PrintSessionButton";
+import type { CashSessionDetail } from "@/components/cash/types";
 import { StaffPicker } from "@/components/staff/StaffPicker";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -14,6 +19,7 @@ import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 import { formatPrice } from "@/lib/currency";
+import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import { cn } from "@/lib/utils";
 
 interface SectorRef {
@@ -35,59 +41,22 @@ interface CashRegisterItem {
   sessions: SessionRef[];
 }
 
-interface StaffRef {
-  id: string;
-  name: string | null;
-  username: string;
-}
-
-interface CashMovementItem {
-  id: string;
-  type: CashMovementType;
-  method: PaymentMethodExtended;
-  amount: string;
-  description: string | null;
-  reference: string | null;
-  createdAt: string;
-}
-
-interface CashSessionDetail {
-  id: string;
-  status: "OPEN" | "CLOSED";
-  openingAmount: string;
-  closingAmount: string | null;
-  expectedAmount: string | null;
-  variance: string | null;
-  openedAt: string;
-  closedAt: string | null;
-  notes: string | null;
-  movements: CashMovementItem[];
-  openedBy: StaffRef | null;
-  closedBy: StaffRef | null;
-}
-
 interface SectorItem {
   id: string;
   name: string;
 }
 
-const MOVEMENT_TYPE_LABELS: Record<CashMovementType, string> = {
-  [CashMovementType.INCOME]: "Ingreso",
-  [CashMovementType.EXPENSE]: "Egreso",
-  [CashMovementType.SALE]: "Venta",
-  [CashMovementType.REFUND]: "Reembolso",
-  [CashMovementType.CORRECTION]: "Ajuste",
-};
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError<{ error?: string }>(error)) {
+    return error.response?.data?.error ?? fallback;
+  }
+  return fallback;
+}
 
-const PAYMENT_METHOD_LABELS: Record<PaymentMethodExtended, string> = {
-  [PaymentMethodExtended.CASH]: "Efectivo",
-  [PaymentMethodExtended.CARD_DEBIT]: "Débito",
-  [PaymentMethodExtended.CARD_CREDIT]: "Crédito",
-  [PaymentMethodExtended.TRANSFER]: "Transferencia",
-  [PaymentMethodExtended.PAYMENT_LINK]: "Link de pago",
-  [PaymentMethodExtended.QR_CODE]: "QR",
-  [PaymentMethodExtended.ACCOUNT]: "Cuenta corriente",
-};
+function varianceClass(variance: number): string {
+  if (variance === 0) return "text-neutral-900";
+  return variance > 0 ? "text-emerald-600" : "text-red-600";
+}
 
 export const Route = createFileRoute("/_app/cash/")({
   component: () => (
@@ -143,12 +112,16 @@ function CashPage() {
   const [openingAmount, setOpeningAmount] = useState("0");
   const [openedById, setOpenedById] = useState<string | undefined>(undefined);
 
-  const [closingAmount, setClosingAmount] = useState("0");
+  const [closingSession, setClosingSession] = useState(false);
+  const [countInputs, setCountInputs] = useState<Record<string, string>>({});
   const [closedById, setClosedById] = useState<string | undefined>(undefined);
 
   if (panel.selected !== prevSelected) {
     setPrevSelected(panel.selected);
     setActiveSessionId(panel.selected?.sessions[0]?.id ?? null);
+    setClosingSession(false);
+    setCountInputs({});
+    setClosedById(undefined);
   }
 
   const { data: registers, isLoading } = useQuery({
@@ -175,6 +148,20 @@ function CashPage() {
     },
     enabled: !!activeSessionId,
   });
+
+  const expectedByMethod = useMemo(
+    () =>
+      session
+        ? computeExpectedByMethod(
+            Number(session.openingAmount),
+            session.movements.map((movement) => ({ ...movement, amount: Number(movement.amount) })),
+          )
+        : {},
+    [session],
+  );
+  const methodsToCount = Object.keys(expectedByMethod) as PaymentMethodExtended[];
+  const allCounted =
+    methodsToCount.length > 0 && methodsToCount.every((method) => (countInputs[method] ?? "").trim() !== "");
 
   const createRegister = useMutation({
     mutationFn: async () => {
@@ -206,15 +193,17 @@ function CashPage() {
 
   const closeSession = useMutation({
     mutationFn: async () => {
-      await apiClient.patch(`/cash-sessions/${activeSessionId}/close`, {
-        closingAmount: Number(closingAmount),
-        closedById,
-      });
+      const counts = methodsToCount.map((method) => ({
+        method,
+        countedAmount: Number(countInputs[method] ?? 0),
+      }));
+      await apiClient.patch(`/cash-sessions/${activeSessionId}/close`, { counts, closedById });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cash-session", activeSessionId] });
       void queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
-      setClosingAmount("0");
+      setClosingSession(false);
+      setCountInputs({});
       setClosedById(undefined);
     },
   });
@@ -233,11 +222,23 @@ function CashPage() {
     <div className="flex h-full flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-neutral-900">Cajas</h1>
-        {registers && registers.length === 0 && !creatingRegister && (
-          <Button size="sm" variant="outline" onClick={() => setCreatingRegister(true)}>
-            <Plus className="h-4 w-4" /> Caja
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Link to="/cash/movements">
+            <Button size="sm" variant="outline">
+              Movimientos
+            </Button>
+          </Link>
+          <Link to="/cash/history">
+            <Button size="sm" variant="outline">
+              Ver historial
+            </Button>
+          </Link>
+          {registers && registers.length === 0 && !creatingRegister && (
+            <Button size="sm" variant="outline" onClick={() => setCreatingRegister(true)}>
+              <Plus className="h-4 w-4" /> Caja
+            </Button>
+          )}
+        </div>
       </div>
 
       {registers && registers.length === 0 && creatingRegister && (
@@ -290,9 +291,14 @@ function CashPage() {
         className="flex-1"
       />
 
-      <SidePanel open={panel.isOpen} onClose={panel.close} title={panel.selected?.name}>
+      <SidePanel
+        open={panel.isOpen}
+        onClose={panel.close}
+        title={panel.selected?.name}
+        bodyClassName="flex min-h-0 flex-1 flex-col"
+      >
         {panel.selected && !activeSessionId && (
-          <div className="flex flex-col gap-4">
+          <div className="flex h-full flex-col gap-4 px-6 py-4">
             <p className="text-sm text-neutral-500">Esta caja está cerrada. Abrila para empezar a registrar movimientos.</p>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="openingAmount">Monto de apertura</Label>
@@ -314,11 +320,13 @@ function CashPage() {
           </div>
         )}
 
-        {panel.selected && activeSessionId && isSessionLoading && <p className="text-sm text-neutral-500">Cargando...</p>}
+        {panel.selected && activeSessionId && isSessionLoading && (
+          <p className="px-6 py-4 text-sm text-neutral-500">Cargando...</p>
+        )}
 
-        {panel.selected && session && (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+        {panel.selected && session && session.status === "OPEN" && !closingSession && (
+          <div className="flex h-full min-h-0 flex-col gap-4 px-6 py-4">
+            <div className="grid shrink-0 grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase text-neutral-500">Abierta por</p>
                 <p className="text-neutral-900">{session.openedBy?.name ?? session.openedBy?.username ?? "—"}</p>
@@ -329,66 +337,113 @@ function CashPage() {
               </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase text-neutral-500">Movimientos</p>
-              <div className="flex max-h-48 flex-col gap-1 overflow-y-auto text-sm">
-                {session.movements.length === 0 && <p className="text-neutral-500">Sin movimientos todavía.</p>}
-                {session.movements.map((movement) => (
-                  <div key={movement.id} className="flex items-center justify-between border-b border-neutral-100 py-1">
-                    <span>
-                      {MOVEMENT_TYPE_LABELS[movement.type]} · {PAYMENT_METHOD_LABELS[movement.method]}
-                    </span>
-                    <span className="font-medium">{formatPrice(movement.amount)}</span>
-                  </div>
-                ))}
+            <div className="flex min-h-0 flex-1 flex-col">
+              <p className="mb-2 shrink-0 text-xs font-medium uppercase text-neutral-500">Movimientos</p>
+              <div className="flex-1 overflow-y-auto">
+                <MovementsList movements={session.movements} />
               </div>
             </div>
 
-            {session.status === "OPEN" && (
-              <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3">
-                <p className="text-xs font-medium uppercase text-neutral-500">Cerrar caja</p>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="Monto contado"
-                  value={closingAmount}
-                  onChange={(event) => setClosingAmount(event.target.value)}
-                />
-                <StaffPicker value={closedById} onChange={setClosedById} />
-                <Button size="sm" onClick={() => closeSession.mutate()} disabled={closeSession.isPending}>
+            <div className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 pt-3">
+              <PrintSessionButton sessionId={session.id} />
+              <Button className="w-full" onClick={() => setClosingSession(true)}>
+                Cerrar caja
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {panel.selected && session && session.status === "OPEN" && closingSession && (
+          <div className="flex h-full min-h-0 flex-col gap-4 px-6 py-4">
+            <p className="shrink-0 text-xs font-medium uppercase text-neutral-500">Cerrar caja — arqueo</p>
+
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+              {methodsToCount.map((method) => {
+                const expected = expectedByMethod[method] ?? 0;
+                const countedRaw = countInputs[method] ?? "";
+                const counted = countedRaw.trim() === "" ? null : Number(countedRaw);
+                const variance = counted === null ? null : counted - expected;
+                return (
+                  <div key={method} className="flex flex-col gap-1 border-b border-neutral-100 pb-2 last:border-b-0">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-neutral-700">{PAYMENT_METHOD_LABELS[method]}</span>
+                      <span className="text-neutral-500">Esperado: {formatPrice(expected)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Contado"
+                        value={countedRaw}
+                        onChange={(event) => setCountInputs((prev) => ({ ...prev, [method]: event.target.value }))}
+                        className="h-9"
+                      />
+                      {variance !== null && (
+                        <span className={cn("w-28 shrink-0 text-right text-sm font-medium", varianceClass(variance))}>
+                          {formatPrice(variance)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <StaffPicker value={closedById} onChange={setClosedById} />
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 pt-3">
+              {closeSession.isError && (
+                <p className="text-xs text-red-600">{extractErrorMessage(closeSession.error, "No se pudo cerrar la caja.")}</p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => {
+                    setClosingSession(false);
+                    setCountInputs({});
+                    closeSession.reset();
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button className="flex-1" disabled={closeSession.isPending || !allCounted} onClick={() => closeSession.mutate()}>
                   Cerrar caja
                 </Button>
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
-            {session.status === "CLOSED" && (
-              <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3">
-                <p className="text-xs font-medium uppercase text-neutral-500">Resultado del arqueo</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-neutral-500">Esperado</span>
-                  <span className="text-right font-medium">{formatPrice(session.expectedAmount!)}</span>
-                  <span className="text-neutral-500">Contado</span>
-                  <span className="text-right font-medium">{formatPrice(session.closingAmount!)}</span>
-                  <span className="text-neutral-500">Diferencia</span>
-                  <span
-                    className={cn(
-                      "text-right font-semibold",
-                      Number(session.variance) === 0
-                        ? "text-neutral-900"
-                        : Number(session.variance) > 0
-                          ? "text-emerald-600"
-                          : "text-red-600",
-                    )}
-                  >
-                    {formatPrice(session.variance!)}
-                  </span>
-                </div>
-                {user?.role === UserRole.ADMIN && (
-                  <Button size="sm" variant="outline" onClick={() => reopenSession.mutate()} disabled={reopenSession.isPending}>
-                    Reabrir caja
-                  </Button>
-                )}
+        {panel.selected && session && session.status === "CLOSED" && (
+          <div className="flex h-full flex-col gap-3 overflow-y-auto px-6 py-4">
+            <p className="text-xs font-medium uppercase text-neutral-500">Resultado del arqueo</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <p className="text-xs text-neutral-500">Apertura</p>
+                <p>{new Date(session.openedAt).toLocaleString("es-AR")}</p>
               </div>
+              <div>
+                <p className="text-xs text-neutral-500">Cierre</p>
+                <p>{session.closedAt ? new Date(session.closedAt).toLocaleString("es-AR") : "—"}</p>
+              </div>
+            </div>
+            <MethodCountsTable counts={session.methodCounts} />
+            <div className="grid grid-cols-2 gap-2 border-t border-neutral-100 pt-2 text-sm">
+              <span className="text-neutral-500">Esperado</span>
+              <span className="text-right font-medium">{formatPrice(session.expectedAmount!)}</span>
+              <span className="text-neutral-500">Contado</span>
+              <span className="text-right font-medium">{formatPrice(session.closingAmount!)}</span>
+              <span className="text-neutral-500">Diferencia</span>
+              <span className={cn("text-right font-semibold", varianceClass(Number(session.variance)))}>
+                {formatPrice(session.variance!)}
+              </span>
+            </div>
+            <PrintSessionButton sessionId={session.id} />
+            {user?.role === UserRole.ADMIN && (
+              <Button size="sm" variant="outline" onClick={() => reopenSession.mutate()} disabled={reopenSession.isPending}>
+                Reabrir caja
+              </Button>
             )}
           </div>
         )}

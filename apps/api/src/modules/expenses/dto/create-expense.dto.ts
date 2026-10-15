@@ -18,5 +18,4 @@ export class CreateExpenseDto {
   @IsOptional() @IsISO8601() expenseDate?: string;
   @IsOptional() @IsString() receiptUrl?: string;
   @IsOptional() @IsString() notes?: string;
-  @IsOptional() @IsString() paidFromSessionId?: string;
 }

@@ -32,7 +32,7 @@ export class ExpensesController {
 
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateExpenseDto) {
-    return this.expensesService.create(requireRestaurantId(user), user.id, user.activeModules, dto);
+    return this.expensesService.create(requireRestaurantId(user), user.id, dto);
   }
 
   @Patch(":id")

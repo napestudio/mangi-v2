@@ -11,7 +11,6 @@ export const createExpenseSchema = z.object({
   expenseDate: z.string().optional(),
   receiptUrl: z.string().optional(),
   notes: z.string().optional(),
-  paidFromSessionId: z.string().optional(),
 });
 export type CreateExpensePayload = z.infer<typeof createExpenseSchema>;
 

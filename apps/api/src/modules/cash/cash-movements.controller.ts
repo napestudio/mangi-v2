@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Module } from "@mangiar/shared";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -9,6 +9,7 @@ import { requireRestaurantId } from "../../common/require-restaurant-id";
 import type { RequestUser } from "../../common/types/request-user.type";
 import { CashMovementsService } from "./cash-movements.service";
 import { CreateMovementDto } from "./dto/create-movement.dto";
+import { ListMovementsDto } from "./dto/list-movements.dto";
 
 @ApiTags("cash-movements")
 @ApiBearerAuth()
@@ -17,6 +18,11 @@ import { CreateMovementDto } from "./dto/create-movement.dto";
 @Controller()
 export class CashMovementsController {
   constructor(private readonly cashMovementsService: CashMovementsService) {}
+
+  @Get("cash-movements")
+  findAllForRestaurant(@CurrentUser() user: RequestUser, @Query() query: ListMovementsDto) {
+    return this.cashMovementsService.findAllForRestaurant(requireRestaurantId(user), query);
+  }
 
   @Get("cash-sessions/:sessionId/movements")
   findAll(@CurrentUser() user: RequestUser, @Param("sessionId") sessionId: string) {

@@ -11,10 +11,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidePanel, useSidePanel } from "@/components/ui/side-panel";
-import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 import { formatPrice } from "@/lib/currency";
-import { cn } from "@/lib/utils";
+import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 
 interface StaffRef {
   id: string;
@@ -32,19 +31,6 @@ interface ExpenseListItem {
   paidBy: StaffRef | null;
   expenseDate: string;
   notes: string | null;
-  cashMovement: { id: string; sessionId: string } | null;
-}
-
-interface OpenSessionOption {
-  registerId: string;
-  registerName: string;
-  sessionId: string;
-}
-
-interface CashRegisterWithOpenSession {
-  id: string;
-  name: string;
-  sessions: { id: string }[];
 }
 
 interface ExpenseFormState {
@@ -55,7 +41,6 @@ interface ExpenseFormState {
   paidMethod: PaymentMethodExtended;
   paidById: string | undefined;
   notes: string;
-  paidFromSessionId: string;
 }
 
 const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
@@ -69,16 +54,6 @@ const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   [ExpenseCategory.OTHER]: "Otro",
 };
 
-const PAYMENT_METHOD_LABELS: Record<PaymentMethodExtended, string> = {
-  [PaymentMethodExtended.CASH]: "Efectivo",
-  [PaymentMethodExtended.CARD_DEBIT]: "Débito",
-  [PaymentMethodExtended.CARD_CREDIT]: "Crédito",
-  [PaymentMethodExtended.TRANSFER]: "Transferencia",
-  [PaymentMethodExtended.PAYMENT_LINK]: "Link de pago",
-  [PaymentMethodExtended.QR_CODE]: "QR",
-  [PaymentMethodExtended.ACCOUNT]: "Cuenta corriente",
-};
-
 function emptyForm(): ExpenseFormState {
   return {
     category: ExpenseCategory.OTHER,
@@ -88,7 +63,6 @@ function emptyForm(): ExpenseFormState {
     paidMethod: PaymentMethodExtended.CASH,
     paidById: undefined,
     notes: "",
-    paidFromSessionId: "",
   };
 }
 
@@ -105,29 +79,14 @@ const columns: ColumnDef<ExpenseListItem>[] = [
   { id: "description", header: "Descripción", cell: ({ row }) => row.original.description },
   { id: "category", header: "Categoría", cell: ({ row }) => CATEGORY_LABELS[row.original.category] },
   { id: "vendor", header: "Proveedor", cell: ({ row }) => row.original.vendor ?? "—" },
-  {
-    id: "source",
-    header: "Origen",
-    cell: ({ row }) => (
-      <span
-        className={cn(
-          "rounded-full px-2 py-0.5 text-xs font-medium",
-          row.original.cashMovement ? "bg-sky-100 text-sky-800" : "bg-neutral-100 text-neutral-600",
-        )}
-      >
-        {row.original.cashMovement ? "Caja" : "Independiente"}
-      </span>
-    ),
-  },
   { id: "amount", header: "Monto", cell: ({ row }) => formatPrice(row.original.amount) },
 ];
 
 function ExpensesPage() {
   const queryClient = useQueryClient();
   const panel = useSidePanel<ExpenseListItem>();
-  const { hasModule } = useModules();
 
-  const [creating, setCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<ExpenseFormState>(emptyForm());
 
   const { data: expenses, isLoading } = useQuery({
@@ -137,20 +96,6 @@ function ExpensesPage() {
       return data.data;
     },
   });
-
-  const { data: registers } = useQuery({
-    queryKey: ["cash-registers"],
-    queryFn: async () => {
-      const { data } = await apiClient.get<ApiEnvelope<CashRegisterWithOpenSession[]>>("/cash-registers");
-      return data.data;
-    },
-    enabled: hasModule(Module.CASH),
-  });
-
-  const openSessions: OpenSessionOption[] =
-    registers
-      ?.filter((register) => register.sessions.length > 0)
-      .map((register) => ({ registerId: register.id, registerName: register.name, sessionId: register.sessions[0]!.id })) ?? [];
 
   const createExpense = useMutation({
     mutationFn: async () => {
@@ -162,37 +107,50 @@ function ExpensesPage() {
         paidMethod: form.paidMethod,
         paidById: form.paidById,
         notes: form.notes || undefined,
-        paidFromSessionId: form.paidFromSessionId || undefined,
       });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      void queryClient.invalidateQueries({ queryKey: ["cash-registers"] });
-      setCreating(false);
-      setForm(emptyForm());
+      closePanel();
     },
   });
+
+  function openCreate() {
+    panel.close();
+    setForm(emptyForm());
+    setIsCreating(true);
+  }
+
+  function closePanel() {
+    panel.close();
+    setIsCreating(false);
+  }
 
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-neutral-900">Gastos</h1>
-        {!creating && (
-          <Button
-            size="sm"
-            onClick={() => {
-              setForm(emptyForm());
-              setCreating(true);
-            }}
-          >
-            <Plus className="h-4 w-4" /> Gasto
-          </Button>
-        )}
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4" /> Gasto
+        </Button>
       </div>
 
-      {creating && (
-        <div className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3">
-          <div className="grid grid-cols-2 gap-2">
+      <DataTable
+        columns={columns}
+        data={expenses ?? []}
+        isLoading={isLoading}
+        onRowClick={panel.open}
+        emptyMessage="No hay gastos cargados."
+        className="flex-1"
+      />
+
+      <SidePanel
+        open={panel.isOpen || isCreating}
+        onClose={closePanel}
+        title={isCreating ? "Nuevo gasto" : panel.selected?.description}
+      >
+        {isCreating && (
+          <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="expDescription">Descripción</Label>
               <Input
@@ -250,58 +208,27 @@ function ExpensesPage() {
               <Label htmlFor="expPaidBy">Pagado por</Label>
               <StaffPicker id="expPaidBy" value={form.paidById} onChange={(id) => setForm((prev) => ({ ...prev, paidById: id }))} />
             </div>
-          </div>
-
-          {hasModule(Module.CASH) && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="expSession">Descontar de una caja abierta (opcional)</Label>
-              <select
-                id="expSession"
-                className="h-10 rounded-md border border-neutral-300 bg-white px-3 text-sm"
-                value={form.paidFromSessionId}
-                onChange={(event) => setForm((prev) => ({ ...prev, paidFromSessionId: event.target.value }))}
-              >
-                <option value="">No descontar de caja (gasto independiente)</option>
-                {openSessions.map((session) => (
-                  <option key={session.sessionId} value={session.sessionId}>
-                    {session.registerName}
-                  </option>
-                ))}
-              </select>
+              <Label htmlFor="expNotes">Notas</Label>
+              <Input id="expNotes" value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
             </div>
-          )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="expNotes">Notas</Label>
-            <Input id="expNotes" value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                disabled={!form.description || !form.amount || createExpense.isPending}
+                onClick={() => createExpense.mutate()}
+              >
+                Registrar gasto
+              </Button>
+              <Button size="sm" variant="ghost" onClick={closePanel}>
+                Cancelar
+              </Button>
+            </div>
           </div>
+        )}
 
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              disabled={!form.description || !form.amount || createExpense.isPending}
-              onClick={() => createExpense.mutate()}
-            >
-              Registrar gasto
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <DataTable
-        columns={columns}
-        data={expenses ?? []}
-        isLoading={isLoading}
-        onRowClick={panel.open}
-        emptyMessage="No hay gastos cargados."
-        className="flex-1"
-      />
-
-      <SidePanel open={panel.isOpen} onClose={panel.close} title={panel.selected?.description}>
-        {panel.selected && (
+        {!isCreating && panel.selected && (
           <div className="flex flex-col gap-4">
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
@@ -323,10 +250,6 @@ function ExpensesPage() {
               <div>
                 <dt className="text-xs font-medium uppercase text-neutral-500">Proveedor</dt>
                 <dd className="text-neutral-900">{panel.selected.vendor ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase text-neutral-500">Origen</dt>
-                <dd className="text-neutral-900">{panel.selected.cashMovement ? "Descontado de caja" : "Independiente"}</dd>
               </div>
             </dl>
             {panel.selected.notes && (

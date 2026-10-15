@@ -20,3 +20,4 @@ export * from "./utils/time-grid";
 export * from "./utils/order-price-type";
 export * from "./utils/order-code";
 export * from "./utils/printer-paper";
+export * from "./utils/cash-arqueo";

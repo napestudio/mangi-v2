@@ -45,6 +45,7 @@ enum ExpenseCategory {
 
 enum AuditAction {
   CASH_SESSION_REOPENED
+  CASH_SESSION_CLOSED
   EXPENSE_UPDATED
   EXPENSE_DELETED
 }
@@ -948,9 +949,23 @@ model CashRegisterSession {
   reopenedById   String?
   reopenedBy     User?              @relation("SessionReopenedBy", fields: [reopenedById], references: [id])
 
-  movements CashMovement[]
+  movements    CashMovement[]
+  methodCounts CashSessionMethodCount[]
 
   @@index([cashRegisterId])
+}
+
+model CashSessionMethodCount {
+  id             String                @id @default(cuid())
+  session        CashRegisterSession   @relation(fields: [sessionId], references: [id])
+  sessionId      String
+  method         PaymentMethodExtended
+  expectedAmount Decimal               @db.Decimal(10, 2)
+  countedAmount  Decimal               @db.Decimal(10, 2)
+  variance       Decimal               @db.Decimal(10, 2)
+
+  @@unique([sessionId, method])
+  @@index([sessionId])
 }
 
 model CashMovement {
@@ -966,30 +981,27 @@ model CashMovement {
   createdBy   User?                 @relation(fields: [createdById], references: [id])
   createdAt   DateTime              @default(now())
 
-  expense             Expense?
   supplierLedgerEntry SupplierLedgerEntry?
 
   @@index([sessionId])
 }
 
 model Expense {
-  id             String                @id @default(cuid())
-  restaurant     Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  restaurantId   String
-  category       ExpenseCategory       @default(OTHER)
-  description    String
-  vendor         String?
-  amount         Decimal               @db.Decimal(10, 2)
-  paidMethod     PaymentMethodExtended @default(CASH)
-  paidBy         User?                 @relation(fields: [paidById], references: [id])
-  paidById       String?
-  expenseDate    DateTime              @default(now())
-  receiptUrl     String?
-  cashMovement   CashMovement?         @relation(fields: [cashMovementId], references: [id])
-  cashMovementId String?               @unique
-  notes          String?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  id           String                @id @default(cuid())
+  restaurant   Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  category     ExpenseCategory       @default(OTHER)
+  description  String
+  vendor       String?
+  amount       Decimal               @db.Decimal(10, 2)
+  paidMethod   PaymentMethodExtended @default(CASH)
+  paidBy       User?                 @relation(fields: [paidById], references: [id])
+  paidById     String?
+  expenseDate  DateTime              @default(now())
+  receiptUrl   String?
+  notes        String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
 
   @@index([restaurantId])
   @@index([restaurantId, expenseDate])

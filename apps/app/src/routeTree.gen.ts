@@ -18,6 +18,8 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-pa
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
 import { Route as AppCashIndexRouteImport } from './routes/_app/cash/index'
+import { Route as AppCashHistoryRouteImport } from './routes/_app/cash/history'
+import { Route as AppCashMovementsRouteImport } from './routes/_app/cash/movements'
 import { Route as AppExpensesIndexRouteImport } from './routes/_app/expenses/index'
 import { Route as AppIngredientsIndexRouteImport } from './routes/_app/ingredients/index'
 import { Route as AppInvoicesIndexRouteImport } from './routes/_app/invoices/index'
@@ -81,6 +83,16 @@ const AuthRegisterRoute = AuthRegisterRouteImport.update({
 const AppCashIndexRoute = AppCashIndexRouteImport.update({
   id: '/cash/',
   path: '/cash/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppCashHistoryRoute = AppCashHistoryRouteImport.update({
+  id: '/cash/history',
+  path: '/cash/history',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppCashMovementsRoute = AppCashMovementsRouteImport.update({
+  id: '/cash/movements',
+  path: '/cash/movements',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppExpensesIndexRoute = AppExpensesIndexRouteImport.update({
@@ -198,6 +210,8 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
+  '/cash/history': typeof AppCashHistoryRoute
+  '/cash/movements': typeof AppCashMovementsRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/pos/counter': typeof AppPosCounterRoute
   '/reservations/new': typeof AppReservationsNewRoute
@@ -228,6 +242,8 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/register': typeof AuthRegisterRoute
+  '/cash/history': typeof AppCashHistoryRoute
+  '/cash/movements': typeof AppCashMovementsRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/pos/counter': typeof AppPosCounterRoute
   '/reservations/new': typeof AppReservationsNewRoute
@@ -261,6 +277,8 @@ export interface FileRoutesById {
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/register': typeof AuthRegisterRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/cash/history': typeof AppCashHistoryRoute
+  '/_app/cash/movements': typeof AppCashMovementsRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/pos/counter': typeof AppPosCounterRoute
   '/_app/reservations/new': typeof AppReservationsNewRoute
@@ -293,6 +311,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/register'
+    | '/cash/history'
+    | '/cash/movements'
     | '/orders/new'
     | '/pos/counter'
     | '/reservations/new'
@@ -323,6 +343,8 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/register'
+    | '/cash/history'
+    | '/cash/movements'
     | '/orders/new'
     | '/pos/counter'
     | '/reservations/new'
@@ -355,6 +377,8 @@ export interface FileRouteTypes {
     | '/_auth/login'
     | '/_auth/register'
     | '/_app/'
+    | '/_app/cash/history'
+    | '/_app/cash/movements'
     | '/_app/orders/new'
     | '/_app/pos/counter'
     | '/_app/reservations/new'
@@ -447,6 +471,20 @@ declare module '@tanstack/react-router' {
       path: '/cash'
       fullPath: '/cash/'
       preLoaderRoute: typeof AppCashIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/cash/history': {
+      id: '/_app/cash/history'
+      path: '/cash/history'
+      fullPath: '/cash/history'
+      preLoaderRoute: typeof AppCashHistoryRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/cash/movements': {
+      id: '/_app/cash/movements'
+      path: '/cash/movements'
+      fullPath: '/cash/movements'
+      preLoaderRoute: typeof AppCashMovementsRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/expenses/': {
@@ -639,6 +677,8 @@ interface AppRouteRouteChildren {
   AppInventoryRouteRoute: typeof AppInventoryRouteRouteWithChildren
   AppSettingsRouteRoute: typeof AppSettingsRouteRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppCashHistoryRoute: typeof AppCashHistoryRoute
+  AppCashMovementsRoute: typeof AppCashMovementsRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppPosCounterRoute: typeof AppPosCounterRoute
   AppReservationsNewRoute: typeof AppReservationsNewRoute
@@ -658,6 +698,8 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppInventoryRouteRoute: AppInventoryRouteRouteWithChildren,
   AppSettingsRouteRoute: AppSettingsRouteRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppCashHistoryRoute: AppCashHistoryRoute,
+  AppCashMovementsRoute: AppCashMovementsRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppPosCounterRoute: AppPosCounterRoute,
   AppReservationsNewRoute: AppReservationsNewRoute,
