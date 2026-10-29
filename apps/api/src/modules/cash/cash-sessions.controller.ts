@@ -12,6 +12,7 @@ import type { RequestUser } from "../../common/types/request-user.type";
 import { CashSessionsService } from "./cash-sessions.service";
 import { CloseSessionDto } from "./dto/close-session.dto";
 import { OpenSessionDto } from "./dto/open-session.dto";
+import { PrintSessionDto } from "./dto/print-session.dto";
 
 @ApiTags("cash-sessions")
 @ApiBearerAuth()
@@ -46,5 +47,10 @@ export class CashSessionsController {
   @Patch("cash-sessions/:id/reopen")
   reopen(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.cashSessionsService.reopen(requireRestaurantId(user), id, user.id);
+  }
+
+  @Post("cash-sessions/:id/print")
+  print(@CurrentUser() user: RequestUser, @Param("id") id: string, @Body() dto: PrintSessionDto) {
+    return this.cashSessionsService.print(requireRestaurantId(user), id, dto.printerId);
   }
 }

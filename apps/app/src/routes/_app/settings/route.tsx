@@ -18,6 +18,7 @@ const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
     module: Module.RESERVATIONS,
   },
   { label: "Delivery", to: "/settings/delivery", module: Module.DELIVERY },
+  { label: "Cajas", to: "/settings/cash", module: Module.CASH },
   { label: "Facturación", to: "/settings/fiscal", module: Module.FISCAL },
   { label: "Impresión", to: "/settings/printing", module: Module.PRINTING },
 ];

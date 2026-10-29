@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useModules } from "@/hooks/useModules";
 import { apiClient, type ApiEnvelope } from "@/lib/api-client";
 import { formatPrice } from "@/lib/currency";
+import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import { isProductAvailable } from "@/lib/stock";
 import { cn } from "@/lib/utils";
 
@@ -38,16 +39,6 @@ interface CashRegisterWithOpenSession {
   name: string;
   sessions: { id: string }[];
 }
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethodExtended, string> = {
-  [PaymentMethodExtended.CASH]: "Efectivo",
-  [PaymentMethodExtended.CARD_DEBIT]: "Débito",
-  [PaymentMethodExtended.CARD_CREDIT]: "Crédito",
-  [PaymentMethodExtended.TRANSFER]: "Transferencia",
-  [PaymentMethodExtended.PAYMENT_LINK]: "Link de pago",
-  [PaymentMethodExtended.QR_CODE]: "QR",
-  [PaymentMethodExtended.ACCOUNT]: "Cuenta corriente",
-};
 
 const UNCATEGORIZED = "__uncategorized__";
 

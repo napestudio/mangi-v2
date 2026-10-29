@@ -40,7 +40,63 @@ interface TestPayload {
   type: "test";
 }
 
-type PrintJobPayloadData = KitchenPayload | ReceiptPayload | TestPayload;
+interface CashMovementEntry {
+  type: string;
+  method: string;
+  amount: string;
+}
+
+interface CashMethodCountEntry {
+  method: string;
+  expectedAmount: string;
+  countedAmount: string;
+  variance: string;
+}
+
+interface CashSessionPayload {
+  type: "cash_session";
+  registerName: string;
+  status: "OPEN" | "CLOSED";
+  openedAt: string;
+  openedBy: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  openingAmount: string;
+  movements: CashMovementEntry[];
+  methodCounts: CashMethodCountEntry[];
+  expectedAmount: string | null;
+  closingAmount: string | null;
+  variance: string | null;
+}
+
+type PrintJobPayloadData = KitchenPayload | ReceiptPayload | TestPayload | CashSessionPayload;
+
+// Debe mantenerse en sync con apps/app/src/components/cash/types.ts#MOVEMENT_TYPE_LABELS
+// (este paquete no depende de @mangiar/shared).
+const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+  INCOME: "Ingreso",
+  EXPENSE: "Egreso",
+  SALE: "Venta",
+  REFUND: "Reembolso",
+  CORRECTION: "Ajuste",
+};
+
+// Debe mantenerse en sync con apps/app/src/lib/payment-methods.ts#PAYMENT_METHOD_LABELS.
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: "Efectivo",
+  CARD_DEBIT: "Débito",
+  CARD_CREDIT: "Crédito",
+  TRANSFER: "Transferencia",
+  PAYMENT_LINK: "Link de pago",
+  QR_CODE: "QR",
+  ACCOUNT: "Cuenta corriente",
+};
+
+// Un movimiento de caja "resta" si es EXPENSE o REFUND — debe mantenerse en sync con
+// packages/shared/src/utils/cash-arqueo.ts#signedCashMovementAmount.
+function isExpenseLikeMovement(type: string): boolean {
+  return type === "EXPENSE" || type === "REFUND";
+}
 
 interface PrinterRef {
   id: string;
@@ -194,6 +250,70 @@ function buildTicket(printer: ThermalPrinter, printJob: IncomingPrintJob): void 
     printer.bold(true);
     printer.leftRight("TOTAL", `$${payload.total}`);
     printer.bold(false);
+  } else if (payload.type === "cash_session") {
+    printer.alignCenter();
+    printer.bold(true);
+    printer.println(payload.registerName.toUpperCase());
+    printer.bold(false);
+    printer.println(payload.status === "OPEN" ? "CAJA ABIERTA" : "ARQUEO DE CAJA");
+    printer.drawLine();
+
+    printer.alignLeft();
+    printer.println(`Apertura: ${new Date(payload.openedAt).toLocaleString("es-AR")}`);
+    if (payload.openedBy) printer.println(`Abrió: ${payload.openedBy}`);
+    if (payload.status === "CLOSED") {
+      if (payload.closedAt) printer.println(`Cierre: ${new Date(payload.closedAt).toLocaleString("es-AR")}`);
+      if (payload.closedBy) printer.println(`Cerró: ${payload.closedBy}`);
+    }
+    printer.leftRight("Monto de apertura", `$${payload.openingAmount}`);
+    printer.drawLine();
+
+    const income = payload.movements.filter((movement) => !isExpenseLikeMovement(movement.type));
+    const expenses = payload.movements.filter((movement) => isExpenseLikeMovement(movement.type));
+    const movementLine = (movement: CashMovementEntry) =>
+      printer.leftRight(
+        `${MOVEMENT_TYPE_LABELS[movement.type] ?? movement.type} · ${PAYMENT_METHOD_LABELS[movement.method] ?? movement.method}`,
+        `$${movement.amount}`,
+      );
+
+    if (payload.movements.length === 0) {
+      printer.println("Sin movimientos.");
+    } else {
+      if (income.length > 0) {
+        printer.bold(true);
+        printer.println("INGRESOS");
+        printer.bold(false);
+        income.forEach(movementLine);
+      }
+      if (expenses.length > 0) {
+        printer.bold(true);
+        printer.println("EGRESOS");
+        printer.bold(false);
+        expenses.forEach(movementLine);
+      }
+    }
+    printer.drawLine();
+
+    if (payload.status === "CLOSED" && payload.methodCounts.length > 0) {
+      printer.bold(true);
+      printer.println("ARQUEO POR MÉTODO");
+      printer.bold(false);
+      for (const count of payload.methodCounts) {
+        printer.println(PAYMENT_METHOD_LABELS[count.method] ?? count.method);
+        printer.leftRight("  Esperado", `$${count.expectedAmount}`);
+        printer.leftRight("  Contado", `$${count.countedAmount}`);
+        printer.leftRight("  Diferencia", `$${count.variance}`);
+      }
+      printer.drawLine();
+    }
+
+    if (payload.status === "CLOSED") {
+      printer.leftRight("Esperado", `$${payload.expectedAmount ?? "0"}`);
+      printer.leftRight("Contado", `$${payload.closingAmount ?? "0"}`);
+      printer.bold(true);
+      printer.leftRight("Diferencia", `$${payload.variance ?? "0"}`);
+      printer.bold(false);
+    }
   } else {
     const width = charsPerLine(printerRef.paperWidth ?? 80);
     printer.alignCenter();
@@ -265,6 +385,49 @@ function renderTicketHtml(printJob: IncomingPrintJob): string {
       <div style="word-break:break-all">${"x".repeat(chars)}</div>
       <hr/>
       <div>Si ves esta línea completa y alineada, la impresora está bien configurada.</div>
+    </body></html>`;
+  }
+
+  if (payload.type === "cash_session") {
+    const income = payload.movements.filter((movement) => !isExpenseLikeMovement(movement.type));
+    const expenses = payload.movements.filter((movement) => isExpenseLikeMovement(movement.type));
+    const movementRow = (movement: CashMovementEntry) =>
+      `<div style="display:flex;justify-content:space-between"><span>${escapeHtml(MOVEMENT_TYPE_LABELS[movement.type] ?? movement.type)} · ${escapeHtml(PAYMENT_METHOD_LABELS[movement.method] ?? movement.method)}</span><span>$${movement.amount}</span></div>`;
+    const methodCountBlock = payload.methodCounts
+      .map(
+        (count) => `<div style="margin-top:4px"><b>${escapeHtml(PAYMENT_METHOD_LABELS[count.method] ?? count.method)}</b>
+          <div style="display:flex;justify-content:space-between"><span>Esperado</span><span>$${count.expectedAmount}</span></div>
+          <div style="display:flex;justify-content:space-between"><span>Contado</span><span>$${count.countedAmount}</span></div>
+          <div style="display:flex;justify-content:space-between"><span>Diferencia</span><span>$${count.variance}</span></div>
+        </div>`,
+      )
+      .join("");
+
+    return `<!doctype html><html><head><meta charset="utf-8"><style>
+      body { width: ${widthMm}mm; font-family: monospace; font-size: 12px; margin: 0; padding: 4px; }
+      hr { border: none; border-top: 1px dashed #000; }
+    </style></head><body>
+      <div style="text-align:center;font-weight:bold">${escapeHtml(payload.registerName.toUpperCase())}</div>
+      <div style="text-align:center">${payload.status === "OPEN" ? "CAJA ABIERTA" : "ARQUEO DE CAJA"}</div>
+      <hr/>
+      <div>Apertura: ${new Date(payload.openedAt).toLocaleString("es-AR")}</div>
+      ${payload.openedBy ? `<div>Abrió: ${escapeHtml(payload.openedBy)}</div>` : ""}
+      ${payload.status === "CLOSED" && payload.closedAt ? `<div>Cierre: ${new Date(payload.closedAt).toLocaleString("es-AR")}</div>` : ""}
+      ${payload.status === "CLOSED" && payload.closedBy ? `<div>Cerró: ${escapeHtml(payload.closedBy)}</div>` : ""}
+      <div style="display:flex;justify-content:space-between"><span>Monto de apertura</span><span>$${payload.openingAmount}</span></div>
+      <hr/>
+      ${payload.movements.length === 0 ? "<div>Sin movimientos.</div>" : ""}
+      ${income.length > 0 ? `<div style="font-weight:bold">INGRESOS</div>${income.map(movementRow).join("")}` : ""}
+      ${expenses.length > 0 ? `<div style="font-weight:bold;margin-top:4px">EGRESOS</div>${expenses.map(movementRow).join("")}` : ""}
+      <hr/>
+      ${payload.status === "CLOSED" && payload.methodCounts.length > 0 ? `<div style="font-weight:bold">ARQUEO POR MÉTODO</div>${methodCountBlock}<hr/>` : ""}
+      ${
+        payload.status === "CLOSED"
+          ? `<div style="display:flex;justify-content:space-between"><span>Esperado</span><span>$${payload.expectedAmount ?? "0"}</span></div>
+             <div style="display:flex;justify-content:space-between"><span>Contado</span><span>$${payload.closingAmount ?? "0"}</span></div>
+             <div style="display:flex;justify-content:space-between;font-weight:bold"><span>Diferencia</span><span>$${payload.variance ?? "0"}</span></div>`
+          : ""
+      }
     </body></html>`;
   }
 

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
+import { PrintingModule } from "../printing/printing.module";
 import { CashMovementsController } from "./cash-movements.controller";
 import { CashMovementsService } from "./cash-movements.service";
 import { CashRegistersController } from "./cash-registers.controller";
@@ -8,7 +9,7 @@ import { CashSessionsController } from "./cash-sessions.controller";
 import { CashSessionsService } from "./cash-sessions.service";
 
 @Module({
-  imports: [PassportModule.register({})],
+  imports: [PassportModule.register({}), PrintingModule],
   controllers: [CashRegistersController, CashSessionsController, CashMovementsController],
   providers: [CashRegistersService, CashSessionsService, CashMovementsService],
   exports: [CashRegistersService, CashSessionsService, CashMovementsService],

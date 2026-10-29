@@ -19,8 +19,14 @@ export const openSessionSchema = z.object({
 });
 export type OpenSessionPayload = z.infer<typeof openSessionSchema>;
 
+export const methodCountSchema = z.object({
+  method: z.nativeEnum(PaymentMethodExtended),
+  countedAmount: z.number().nonnegative(),
+});
+export type MethodCountPayload = z.infer<typeof methodCountSchema>;
+
 export const closeSessionSchema = z.object({
-  closingAmount: z.number().nonnegative(),
+  counts: z.array(methodCountSchema).min(1),
   closedById: z.string().optional(),
   notes: z.string().optional(),
 });

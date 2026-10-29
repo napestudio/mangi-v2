@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { buildOrderCode, Module, type OrderType } from "@mangiar/shared";
 import type { Prisma, PrintJob as PrismaPrintJob } from "../../../generated/prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -108,6 +108,56 @@ export class PrintJobsService {
     }
   }
 
+  async enqueueCashSessionPrint(restaurantId: string, sessionId: string, printerId: string): Promise<PrismaPrintJob> {
+    if (!(await this.isPrintingActive(restaurantId))) {
+      throw new BadRequestException("The Printing module is not active for this restaurant");
+    }
+
+    const printer = await this.prisma.printer.findFirst({ where: { id: printerId, restaurantId, isActive: true } });
+    if (!printer) {
+      throw new NotFoundException("Printer not found");
+    }
+
+    const session = await this.prisma.cashRegisterSession.findFirst({
+      where: { id: sessionId, cashRegister: { restaurantId } },
+      include: {
+        cashRegister: { select: { name: true } },
+        movements: { orderBy: { createdAt: "asc" } },
+        methodCounts: true,
+        openedBy: { select: { name: true, username: true } },
+        closedBy: { select: { name: true, username: true } },
+      },
+    });
+    if (!session) {
+      throw new NotFoundException("Cash session not found");
+    }
+
+    return this.createAndEmit(restaurantId, printerId, {
+      type: "cash_session",
+      registerName: session.cashRegister.name,
+      status: session.status,
+      openedAt: session.openedAt.toISOString(),
+      openedBy: session.openedBy?.name ?? session.openedBy?.username ?? null,
+      closedAt: session.closedAt?.toISOString() ?? null,
+      closedBy: session.closedBy?.name ?? session.closedBy?.username ?? null,
+      openingAmount: session.openingAmount.toString(),
+      movements: session.movements.map((movement) => ({
+        type: movement.type,
+        method: movement.method,
+        amount: movement.amount.toString(),
+      })),
+      methodCounts: session.methodCounts.map((count) => ({
+        method: count.method,
+        expectedAmount: count.expectedAmount.toString(),
+        countedAmount: count.countedAmount.toString(),
+        variance: count.variance.toString(),
+      })),
+      expectedAmount: session.expectedAmount?.toString() ?? null,
+      closingAmount: session.closingAmount?.toString() ?? null,
+      variance: session.variance?.toString() ?? null,
+    });
+  }
+
   async enqueueTestPrint(restaurantId: string, printerId: string): Promise<PrismaPrintJob> {
     const printer = await this.prisma.printer.findFirst({ where: { id: printerId, restaurantId } });
     if (!printer) {
@@ -159,8 +209,16 @@ export class PrintJobsService {
     // forma de saber que no salió, y puede no estar cerca de la impresora para notar el problema a
     // simple vista. Avisamos por socket a cualquier pantalla conectada del restaurante (la prueba de
     // impresión no entra acá: ya tiene su propio aviso vía polling en el frontend).
-    if (dto.status === "FAILED" && (payload?.type === "kitchen" || payload?.type === "receipt")) {
-      const what = payload.type === "kitchen" ? `la comanda de ${payload.stationName ?? "cocina"}` : "el recibo";
+    if (
+      dto.status === "FAILED" &&
+      (payload?.type === "kitchen" || payload?.type === "receipt" || payload?.type === "cash_session")
+    ) {
+      const what =
+        payload.type === "kitchen"
+          ? `la comanda de ${payload.stationName ?? "cocina"}`
+          : payload.type === "receipt"
+            ? "el recibo"
+            : "el detalle de caja";
       const order = payload.orderCode ? ` (${payload.orderCode})` : "";
       const reason = dto.errorMessage ? ` — ${dto.errorMessage}` : "";
       this.eventsGateway.emitPrintJobFailed(restaurantId, {
